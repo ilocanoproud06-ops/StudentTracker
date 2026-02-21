@@ -1,0 +1,1872 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AcademicPro - Student Portal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+    <!-- Firebase SDK (Optional - for cloud sync) -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    <!-- Local Storage Sync Manager (works offline) -->
+    <script src="firebase-config.js"></script>
+    <script>
+      // Storage mode - default to localStorage for offline use
+      // Set to true only if you want cloud sync with Firebase
+      window.FORCE_LOCAL_ONLY = true; // Always use localStorage first (works offline)
+
+      // AUTO-DETECT: Automatically detect GitHub Pages URL from current location
+      // This works when deployed to GitHub Pages
+      const currentPath = window.location.pathname;
+      const pathParts = currentPath.split("/").filter((p) => p);
+      // Remove the current file name to get the base path
+      const basePath =
+        pathParts.length > 0
+          ? "/" + pathParts.slice(0, -1).join("/") + "/"
+          : "/";
+      // Construct the GitHub Pages URL
+      const GITHUB_PAGES_DATA_URL =
+        window.location.origin + basePath + "data.json";
+
+      // Initialize shared data URL
+      setSharedDataUrl(GITHUB_PAGES_DATA_URL);
+      console.log("GitHub Pages Data URL:", GITHUB_PAGES_DATA_URL);
+    </script>
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap");
+      body {
+        font-family: "Plus Jakarta Sans", sans-serif;
+      }
+      .glass-panel {
+        background: rgba(255, 255, 255, 0.7);
+        backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+      }
+      .fade-in {
+        animation: fadeIn 0.5s ease-in-out;
+      }
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(20px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+    </style>
+  </head>
+  <body
+    class="bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 text-slate-900 min-h-screen"
+  >
+    <!-- LOGIN OVERLAY -->
+    <div
+      id="auth-overlay"
+      class="fixed inset-0 z-[100] flex items-center justify-center p-4"
+    >
+      <div
+        class="max-w-md w-full bg-white rounded-[2.5rem] p-10 shadow-2xl fade-in"
+      >
+        <div class="text-center mb-8">
+          <div
+            class="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center text-white text-3xl font-black mx-auto mb-4"
+          >
+            <i class="fas fa-user-graduate"></i>
+          </div>
+          <h2 class="text-2xl font-black text-slate-800">Student Portal</h2>
+          <p class="text-slate-400 text-sm font-medium">
+            Enter your ID or PIN to view grades
+          </p>
+        </div>
+
+        <div class="space-y-4">
+          <div id="loading-indicator" class="text-center py-2">
+            <div class="spinner-border text-primary" role="status">
+              <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="text-slate-500 text-sm mt-2">Loading student data...</p>
+          </div>
+          <input
+            type="text"
+            id="student-id-input"
+            placeholder="Enter your Student ID or PIN"
+            class="w-full p-4 bg-slate-50 border rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 text-center font-bold text-lg"
+          />
+
+          <button
+            onclick="handleStudentLogin()"
+            class="w-full bg-blue-600 text-white py-4 rounded-2xl font-bold uppercase tracking-widest hover:bg-blue-700 transition-all"
+          >
+            View My Grades
+          </button>
+          <p
+            class="text-center text-[10px] text-slate-400 font-bold uppercase tracking-tighter mt-2"
+          >
+            Enter your Student ID or PIN to log in
+          </p>
+
+          <div class="mt-4 pt-4 border-top text-center">
+            <a
+              href="welcome_student.html"
+              class="text-blue-600 text-sm font-bold hover:underline"
+            >
+              <i class="fas fa-arrow-left me-1"></i> Back to Home
+            </a>
+          </div>
+
+          <!-- Alternative Access Links -->
+          <div class="mt-3 pt-3 border-top">
+            <p
+              class="text-center text-xs text-slate-400 font-bold uppercase mb-2"
+            >
+              Alternative Access
+            </p>
+            <div class="d-flex justify-content-center gap-2 flex-wrap">
+              <button
+                class="btn btn-sm btn-outline-info"
+                onclick="showUrlModal()"
+                title="Show all access URLs"
+              >
+                <i class="fas fa-globe me-1"></i> View All URLs
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MAIN INTERFACE -->
+    <div id="main-view" class="hidden">
+      <!-- PIN Update Modal -->
+      <div class="modal fade" id="pinUpdateModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title fw-bold">Update Personal Information</h5>
+              <button class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+              <div class="mb-3">
+                <label class="form-label fw-bold">Student ID</label>
+                <input
+                  type="text"
+                  class="form-control"
+                  id="editStudentId"
+                  readonly
+                />
+                <small class="text-muted">Student ID cannot be changed</small>
+              </div>
+              <div class="row mb-3">
+                <div class="col-md-6">
+                  <label class="form-label fw-bold">Lastname</label>
+                  <input
+                    type="text"
+                    class="form-control"
+                    id="editLastname"
+                    placeholder="Enter Lastname"
+                  />
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label fw-bold">Firstname</label>
+                  <input
+                    type="text"
+                    class="form-control"
+                    id="editFirstname"
+                    placeholder="Enter Firstname"
+                  />
+                </div>
+              </div>
+              <div class="row mb-3">
+                <div class="col-md-4">
+                  <label class="form-label fw-bold">Middle Initial</label>
+                  <input
+                    type="text"
+                    class="form-control"
+                    id="editMiddleInitial"
+                    placeholder="M.I."
+                    maxlength="5"
+                  />
+                </div>
+                <div class="col-md-8">
+                  <label class="form-label fw-bold">Email</label>
+                  <input
+                    type="email"
+                    class="form-control"
+                    id="editEmail"
+                    placeholder="Enter Email"
+                  />
+                </div>
+              </div>
+              <hr />
+              <div class="mb-3">
+                <label class="form-label fw-bold">Current PIN</label>
+                <input
+                  type="text"
+                  class="form-control"
+                  id="currentPinInput"
+                  placeholder="Enter current PIN"
+                />
+              </div>
+              <div class="mb-3">
+                <label class="form-label fw-bold">New PIN</label>
+                <input
+                  type="text"
+                  class="form-control"
+                  id="newPinInput"
+                  placeholder="Enter new PIN"
+                  maxlength="10"
+                />
+                <small class="text-muted"
+                  >PIN format: First letter of Lastname + First letter of
+                  Firstname + 3 random numbers (e.g., John Brown ->
+                  BJ100)</small
+                >
+              </div>
+              <div class="mb-3">
+                <label class="form-label fw-bold">Confirm New PIN</label>
+                <input
+                  type="text"
+                  class="form-control"
+                  id="confirmPinInput"
+                  placeholder="Confirm new PIN"
+                  maxlength="10"
+                />
+              </div>
+              <button
+                class="btn btn-primary w-100"
+                onclick="updatePersonalInfo()"
+              >
+                Update Information
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Group Selection Modal -->
+      <div class="modal fade" id="groupSelectionModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title fw-bold">
+                <i class="fas fa-users me-2"></i>Choose Groupmates
+              </h5>
+              <button class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+              <div class="mb-3">
+                <label class="form-label fw-bold">Select Course</label>
+                <select
+                  class="form-select"
+                  id="groupCourseSelect"
+                  onchange="loadGroupOptions()"
+                >
+                  <option value="">Select Course</option>
+                </select>
+              </div>
+              <div id="groupOptionsContainer" class="d-none">
+                <div class="mb-3">
+                  <label class="form-label fw-bold">Available Groups</label>
+                  <div id="groupOptions" class="row g-2">
+                    <!-- Group options will be dynamically inserted here -->
+                  </div>
+                </div>
+                <div class="mb-3">
+                  <label class="form-label fw-bold">Group Members</label>
+                  <div
+                    id="groupMembersList"
+                    class="border rounded p-3 bg-light"
+                  >
+                    <p class="text-muted text-center">
+                      Select a group to view members
+                    </p>
+                  </div>
+                </div>
+                <button
+                  class="btn btn-success w-100"
+                  onclick="confirmGroupSelection()"
+                >
+                  <i class="fas fa-check me-1"></i> Confirm Selection
+                </button>
+              </div>
+              <div id="noGroupsMessage" class="text-center py-4 text-muted">
+                <p>No groups available for this course.</p>
+                <small
+                  >Please contact your administrator to create groups.</small
+                >
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <nav
+        class="sticky top-0 z-50 glass-panel border-b px-8 py-4 flex justify-between items-center"
+      >
+        <div class="flex items-center gap-3">
+          <div
+            class="bg-blue-600 text-white px-3 py-1 rounded-lg font-black text-[10px] uppercase"
+          >
+            Student
+          </div>
+          <h1 class="font-extrabold text-xl tracking-tighter">
+            ACADEMIC DASHBOARD
+          </h1>
+        </div>
+        <div class="flex items-center gap-3">
+          <!-- Refresh Data Button -->
+          <button
+            id="refreshDataBtn"
+            onclick="refreshStudentData()"
+            class="btn btn-sm btn-outline-primary"
+            title="Refresh data from server"
+          >
+            <i class="fas fa-sync-alt me-1"></i> Refresh
+          </button>
+          <!-- Connection Status Indicator -->
+          <div id="connectionStatus" class="badge bg-warning">
+            <i class="fas fa-wifi me-1"></i>
+            <span id="connectionText">Checking...</span>
+          </div>
+          <span
+            id="student-name-display"
+            class="font-bold text-slate-700"
+          ></span>
+          <button
+            onclick="window.location.href = 'welcome_student.html'"
+            class="bg-red-50 text-red-600 px-4 py-2 rounded-xl text-xs font-bold hover:bg-red-100 transition-all"
+          >
+            <i class="fas fa-sign-out-alt me-1"></i> Sign Out
+          </button>
+        </div>
+      </nav>
+
+      <main class="max-w-[1600px] mx-auto p-6">
+        <!-- Student Info Card -->
+        <div class="bg-white rounded-[2rem] shadow-sm border p-6 mb-6 fade-in">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-4">
+              <div
+                class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 text-2xl font-black"
+              >
+                <i class="fas fa-user"></i>
+              </div>
+              <div>
+                <h2 id="display-student-name" class="font-black text-2xl"></h2>
+                <p
+                  id="display-student-info"
+                  class="text-slate-500 font-medium"
+                ></p>
+                <p
+                  id="display-student-pin"
+                  class="text-blue-600 font-bold text-sm mt-1"
+                >
+                  PIN: <span id="pin-display">---</span>
+                  <button
+                    onclick="showPinUpdateModal()"
+                    class="ml-2 text-xs text-blue-500 hover:text-blue-700 underline"
+                  >
+                    <i class="fas fa-edit"></i> Edit Profile
+                  </button>
+                </p>
+                <p class="text-purple-600 font-bold text-sm mt-1">
+                  <button
+                    onclick="showGroupSelectionModal()"
+                    class="text-xs text-purple-500 hover:text-purple-700 underline"
+                  >
+                    <i class="fas fa-users me-1"></i> Choose Groupmates
+                  </button>
+                </p>
+              </div>
+            </div>
+            <div class="text-right flex items-center gap-6">
+              <div>
+                <p class="text-xs text-slate-400 font-bold uppercase">
+                  Overall Average
+                </p>
+                <p
+                  id="overall-average"
+                  class="text-4xl font-black text-blue-600"
+                >
+                  --%
+                </p>
+              </div>
+              <div>
+                <p class="text-xs text-slate-400 font-bold uppercase">
+                  Overall Grade
+                </p>
+                <p
+                  id="overall-letter-grade"
+                  class="text-4xl font-black text-slate-800"
+                >
+                  --
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- No Enrollments Message -->
+        <div
+          id="no-enrollments"
+          class="hidden bg-white rounded-[2rem] shadow-sm border p-12 text-center"
+        >
+          <div
+            class="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center text-slate-400 text-4xl mx-auto mb-4"
+          >
+            <i class="fas fa-book-open"></i>
+          </div>
+          <h3 class="font-black text-xl mb-2">No Courses Enrolled</h3>
+          <p class="text-slate-500 mb-4">
+            You are not enrolled in any courses yet.
+          </p>
+          <p class="text-sm text-slate-400">
+            Please contact your administrator to enroll you in courses.
+          </p>
+        </div>
+
+        <!-- Course Grades -->
+        <div id="courses-grades" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <!-- Course cards will be dynamically inserted here -->
+        </div>
+      </main>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+      const DB_KEY = "academic_grade_system_v1";
+      let currentStudentId = null;
+      let currentStudent = null;
+
+      // Load store from localStorage
+      let store = JSON.parse(localStorage.getItem(DB_KEY)) || {
+        courses: [],
+        students: [],
+        enrollments: [],
+        grades: {},
+        assessments: [],
+        hps: { quiz: 50, pt: 100, project: 100, exam: 100, written: 100 },
+        weights: { written: 40, quiz: 20, pt: 30, project: 10 },
+        gradingScale: [
+          { min: 95, max: 100, label: "A" },
+          { min: 90, max: 94, label: "A-" },
+          { min: 85, max: 89, label: "B+" },
+          { min: 80, max: 84, label: "B" },
+          { min: 75, max: 79, label: "B-" },
+          { min: 70, max: 74, label: "C+" },
+          { min: 65, max: 69, label: "C" },
+          { min: 60, max: 64, label: "C-" },
+          { min: 55, max: 59, label: "D" },
+          { min: 0, max: 54, label: "F" },
+        ],
+      };
+
+      // ============================================
+      // Firebase Firestore Load Functions
+      // ============================================
+
+      // Load all data from Firebase Firestore on startup
+      async function loadFromFirebase() {
+        // Check if Firebase is available
+        if (!db || !firebase || typeof firebase.firestore !== "function") {
+          console.log("Firebase not available, using localStorage only");
+          store = JSON.parse(localStorage.getItem(DB_KEY)) || store;
+          return false;
+        }
+
+        try {
+          console.log("Loading data from Firebase...");
+
+          // Load collections
+          store.courses = await loadCollectionFromFirebase("courses");
+          store.students = await loadCollectionFromFirebase("students");
+          store.enrollments = await loadCollectionFromFirebase("enrollments");
+          store.assessments = await loadCollectionFromFirebase("assessments");
+          store.groups = await loadCollectionFromFirebase("groups");
+          store.grades = await loadGradesFromFirebase("grades");
+
+          // Load settings
+          const hpsDoc = await db.collection("settings").doc("hps").get();
+          if (hpsDoc.exists) {
+            store.hps = hpsDoc.data();
+          }
+
+          const weightsDoc = await db
+            .collection("settings")
+            .doc("weights")
+            .get();
+          if (weightsDoc.exists) {
+            store.weights = weightsDoc.data();
+          }
+
+          const gradingScaleDoc = await db
+            .collection("settings")
+            .doc("gradingScale")
+            .get();
+          if (gradingScaleDoc.exists) {
+            store.gradingScale = gradingScaleDoc.data().scale || [];
+          }
+
+          // Save to localStorage after loading from Firebase
+          localStorage.setItem(DB_KEY, JSON.stringify(store));
+
+          console.log("Data loaded from Firebase successfully");
+          return true;
+        } catch (error) {
+          console.error("Error loading from Firebase:", error);
+          // Fall back to localStorage on error
+          console.log("Falling back to localStorage...");
+          store = JSON.parse(localStorage.getItem(DB_KEY)) || store;
+          return false;
+        }
+      }
+
+      // Load a collection array from Firestore
+      async function loadCollectionFromFirebase(collectionName) {
+        // Check if Firebase is available
+        if (!db || !firebase || typeof firebase.firestore !== "function") {
+          return [];
+        }
+
+        try {
+          const snapshot = await db.collection(collectionName).get();
+          const data = [];
+          snapshot.forEach((doc) => {
+            data.push(doc.data());
+          });
+          return data;
+        } catch (error) {
+          console.error(
+            `Error loading ${collectionName} from Firebase:`,
+            error,
+          );
+          return [];
+        }
+      }
+
+      // Load grades from Firestore (grades is an object, not array)
+      async function loadGradesFromFirebase(collectionName) {
+        // Check if Firebase is available
+        if (!db || !firebase || typeof firebase.firestore !== "function") {
+          return {};
+        }
+
+        try {
+          const snapshot = await db.collection(collectionName).get();
+          const gradesObj = {};
+          snapshot.forEach((doc) => {
+            const data = doc.data();
+            const id = data.id;
+            delete data.id;
+            gradesObj[id] = data;
+          });
+          return gradesObj;
+        } catch (error) {
+          console.error(
+            `Error loading ${collectionName} from Firebase:`,
+            error,
+          );
+          return {};
+        }
+      }
+
+      // Save data to Firebase Firestore
+      async function saveToFirebase() {
+        // Check if Firebase is available
+        if (!db || !firebase || typeof firebase.firestore !== "function") {
+          console.log("Firebase not available, skipping sync");
+          return;
+        }
+
+        try {
+          // Save students (for PIN updates)
+          await saveCollectionToFirebase("students", store.students);
+          // Save grades
+          await saveGradesToFirebase("grades", store.grades);
+          console.log("Data synced to Firebase successfully");
+        } catch (error) {
+          console.error("Error syncing to Firebase:", error);
+        }
+      }
+
+      // Save a collection array to Firestore
+      async function saveCollectionToFirebase(collectionName, data) {
+        // Check if Firebase is available
+        if (!db || !firebase || typeof firebase.firestore !== "function") {
+          return;
+        }
+
+        try {
+          // Delete all existing documents in the collection
+          const snapshot = await db.collection(collectionName).get();
+          const deletePromises = snapshot.docs.map((doc) => doc.ref.delete());
+          await Promise.all(deletePromises);
+
+          // Add all items from the array
+          if (data && data.length > 0) {
+            const addPromises = data.map((item) =>
+              db.collection(collectionName).add(item),
+            );
+            await Promise.all(addPromises);
+          }
+        } catch (error) {
+          console.error(`Error saving ${collectionName} to Firebase:`, error);
+        }
+      }
+
+      // Save grades to Firestore
+      async function saveGradesToFirebase(collectionName, data) {
+        // Check if Firebase is available
+        if (!db || !firebase || typeof firebase.firestore !== "function") {
+          return;
+        }
+
+        try {
+          const snapshot = await db.collection(collectionName).get();
+          const deletePromises = snapshot.docs.map((doc) => doc.ref.delete());
+          await Promise.all(deletePromises);
+
+          if (data) {
+            const entries = Object.entries(data);
+            if (entries.length > 0) {
+              const addPromises = entries.map(([key, value]) =>
+                db.collection(collectionName).add({ id: key, ...value }),
+              );
+              await Promise.all(addPromises);
+            }
+          }
+        } catch (error) {
+          console.error(`Error saving ${collectionName} to Firebase:`, error);
+        }
+      }
+
+      // Initialize app - use SyncManager for offline-first loading
+      async function initStudentApp() {
+        const loadingIndicator = document.getElementById("loading-indicator");
+        const inputField = document.getElementById("student-id-input");
+        const loginButton = document.querySelector(
+          'button[onclick="handleStudentLogin()"]',
+        );
+
+        // Show loading, hide input
+        if (loadingIndicator) loadingIndicator.style.display = "block";
+        if (inputField) inputField.style.display = "none";
+        if (loginButton) loginButton.style.display = "none";
+
+        try {
+          // Use SyncManager - loads from localStorage first (works offline)
+          const storeData = await SyncManager.loadData();
+          store = storeData;
+
+          console.log(
+            "Student app initialized, students count:",
+            store.students.length,
+          );
+
+          // Show message if no students found
+          if (!store.students || store.students.length === 0) {
+            if (loadingIndicator) {
+              loadingIndicator.innerHTML = `
+                <div class="text-warning mb-2">
+                  <i class="fas fa-exclamation-triangle fa-2x"></i>
+                </div>
+                <p class="text-warning font-bold">No students found!</p>
+                <p class="text-slate-500 text-sm">Please contact your administrator to add students.</p>
+              `;
+              return; // Don't show login, show error instead
+            }
+          }
+        } catch (error) {
+          console.error("Error initializing app:", error);
+          // Show error message
+          if (loadingIndicator) {
+            loadingIndicator.innerHTML = `
+              <div class="text-danger mb-2">
+                <i class="fas fa-exclamation-circle fa-2x"></i>
+              </div>
+              <p class="text-danger font-bold">Error Loading Data</p>
+              <p class="text-slate-500 text-sm">Could not load student data.</p>
+              <button class="btn btn-outline-primary btn-sm mt-2" onclick="location.reload()">
+                <i class="fas fa-sync me-1"></i> Try Again
+              </button>
+            `;
+            return;
+          }
+        }
+
+        // Hide loading, show input
+        if (loadingIndicator) loadingIndicator.style.display = "none";
+        if (inputField) inputField.style.display = "block";
+        if (loginButton) loginButton.style.display = "block";
+
+        // Update connection status indicator
+        updateConnectionStatus();
+      }
+
+      // Run initialization
+      initStudentApp();
+
+      // Update connection status indicator using SyncManager
+      function updateConnectionStatus() {
+        const statusEl = document.getElementById("connectionStatus");
+        const textEl = document.getElementById("connectionText");
+
+        if (!statusEl || !textEl) return;
+
+        // Get status from SyncManager
+        const status = SyncManager.getStatus();
+
+        if (status.storageMode === "firebase") {
+          statusEl.className = "badge bg-success";
+          statusEl.innerHTML =
+            '<i class="fas fa-cloud me-1"></i> <span>Cloud Mode</span>';
+        } else if (!status.online) {
+          statusEl.className = "badge bg-warning";
+          statusEl.innerHTML =
+            '<i class="fas fa-wifi me-1"></i> <span>Offline</span>';
+        } else {
+          statusEl.className = "badge bg-info";
+          statusEl.innerHTML =
+            '<i class="fas fa-save me-1"></i> <span>Local Mode</span>';
+        }
+      }
+
+      // Update status on load and on online/offline events
+      updateConnectionStatus();
+      window.addEventListener("online", updateConnectionStatus);
+      window.addEventListener("offline", updateConnectionStatus);
+
+      // Refresh student data from server
+      async function refreshStudentData() {
+        const refreshBtn = document.getElementById("refreshDataBtn");
+        const originalContent = refreshBtn.innerHTML;
+
+        // Show loading state
+        refreshBtn.innerHTML =
+          '<i class="fas fa-spinner fa-spin me-1"></i> Loading...';
+        refreshBtn.disabled = true;
+
+        try {
+          // Reload data from SyncManager (will try GitHub Pages URL first, then Firebase, then local)
+          const storeData = await SyncManager.loadData();
+          store = storeData;
+
+          // Re-render grades
+          if (currentStudentId) {
+            renderStudentGrades();
+          }
+
+          alert("Data refreshed successfully!");
+        } catch (error) {
+          console.error("Error refreshing data:", error);
+          alert("Error refreshing data. Please try again.");
+        } finally {
+          // Restore button
+          refreshBtn.innerHTML = originalContent;
+          refreshBtn.disabled = false;
+        }
+      }
+
+      // Ensure assessments array exists (for backwards compatibility)
+      if (!store.assessments) {
+        store.assessments = [];
+        localStorage.setItem(DB_KEY, JSON.stringify(store));
+      }
+
+      // Handle student login
+      function handleStudentLogin() {
+        const studentIdInput = document
+          .getElementById("student-id-input")
+          .value.trim();
+        if (!studentIdInput) {
+          alert("Please enter your Student ID Number");
+          return;
+        }
+
+        // Debug: Check if store has students and what's in localStorage
+        console.log("=== STUDENT LOGIN DEBUG ===");
+        console.log("Input:", studentIdInput);
+        console.log(
+          "Store students count:",
+          store.students ? store.students.length : 0,
+        );
+        console.log("localStorage key:", DB_KEY);
+
+        if (!store.students || store.students.length === 0) {
+          console.log("No students found in store");
+          alert(
+            "No students found in the system. Please contact your administrator.",
+          );
+          return;
+        }
+
+        // First, try to find student by ID Number (case-insensitive, trimmed)
+        let student = store.students.find(
+          (s) =>
+            s.idNum &&
+            s.idNum.toUpperCase().trim() ===
+              studentIdInput.toUpperCase().trim(),
+        );
+
+        // If not found by ID, try to find by PIN
+        if (!student) {
+          student = store.students.find(
+            (s) =>
+              s.pin &&
+              s.pin.toUpperCase().trim() ===
+                studentIdInput.toUpperCase().trim(),
+          );
+        }
+
+        if (!student) {
+          // Log all students for debugging
+          console.log("All students in system:");
+          store.students.forEach((s, i) => {
+            console.log(
+              `  ${i}: idNum="${s.idNum}", pin="${s.pin}", name="${s.name}"`,
+            );
+          });
+
+          alert(
+            "Student ID or PIN not found. Please check with your administrator.\n\n" +
+              "Make sure you enter either:\n" +
+              "  - Your Student ID (e.g., IT5839)\n" +
+              "  - Your PIN (e.g., BJ100)",
+          );
+          return;
+        }
+
+        console.log("Login successful for:", student.name);
+
+        currentStudentId = student.id;
+        currentStudent = student;
+
+        // Show main view
+        document.getElementById("auth-overlay").classList.add("hidden");
+        document.getElementById("main-view").classList.remove("hidden");
+
+        // Display student info
+        document.getElementById("student-name-display").textContent =
+          student.name;
+        document.getElementById("display-student-name").textContent =
+          student.name;
+        document.getElementById("display-student-info").textContent =
+          `ID: ${student.idNum} | Program: ${student.program || "N/A"} | Year: ${student.year}`;
+
+        // Display PIN
+        document.getElementById("pin-display").textContent =
+          student.pin || "Not set";
+
+        // Render enrolled courses and grades
+        renderStudentGrades();
+      }
+
+      // Show PIN update modal
+      function showPinUpdateModal() {
+        // Populate current student info
+        document.getElementById("editStudentId").value =
+          currentStudent.idNum || "";
+
+        // Parse the name to extract lastname, firstname, and middle initial
+        var fullName = currentStudent.name || "";
+        var nameParts = fullName.trim().split(" ");
+
+        if (nameParts.length >= 2) {
+          // Lastname is the last part, Firstname is the first part
+          document.getElementById("editLastname").value =
+            nameParts[nameParts.length - 1];
+          document.getElementById("editFirstname").value = nameParts[0];
+
+          // Middle initial - if there's more than 2 parts, the middle parts form the middle name
+          if (nameParts.length > 2) {
+            document.getElementById("editMiddleInitial").value = nameParts
+              .slice(1, nameParts.length - 1)
+              .join(" ");
+          } else {
+            document.getElementById("editMiddleInitial").value = "";
+          }
+        } else {
+          document.getElementById("editLastname").value = fullName;
+          document.getElementById("editFirstname").value = "";
+          document.getElementById("editMiddleInitial").value = "";
+        }
+
+        document.getElementById("editEmail").value = currentStudent.email || "";
+        document.getElementById("currentPinInput").value = "";
+        document.getElementById("newPinInput").value = "";
+        document.getElementById("confirmPinInput").value = "";
+
+        var modalEl = document.getElementById("pinUpdateModal");
+        var modal = new bootstrap.Modal(modalEl);
+        modal.show();
+      }
+
+      // Update Personal Information
+      function updatePersonalInfo() {
+        const currentPin = document
+          .getElementById("currentPinInput")
+          .value.trim();
+        const newPin = document.getElementById("newPinInput").value.trim();
+        const confirmPin = document
+          .getElementById("confirmPinInput")
+          .value.trim();
+
+        const lastname = document.getElementById("editLastname").value.trim();
+        const firstname = document.getElementById("editFirstname").value.trim();
+        const middleInitial = document
+          .getElementById("editMiddleInitial")
+          .value.trim();
+        const email = document.getElementById("editEmail").value.trim();
+
+        if (!lastname || !firstname) {
+          alert("Please enter at least Lastname and Firstname");
+          return;
+        }
+
+        // Verify current PIN if user wants to change PIN
+        if ((newPin || confirmPin) && !currentPin) {
+          alert("Please enter your current PIN to change it");
+          return;
+        }
+
+        if (
+          currentPin &&
+          currentPin.toUpperCase() !== currentStudent.pin.toUpperCase()
+        ) {
+          alert("Current PIN is incorrect");
+          return;
+        }
+
+        if (newPin && newPin !== confirmPin) {
+          alert("New PIN and confirmation do not match");
+          return;
+        }
+
+        // Build full name
+        var fullName = firstname;
+        if (middleInitial) {
+          fullName += " " + middleInitial;
+        }
+        fullName += " " + lastname;
+
+        // Update student data
+        const studentIndex = store.students.findIndex(
+          (s) => s.id === currentStudentId,
+        );
+
+        if (studentIndex !== -1) {
+          store.students[studentIndex].name = fullName;
+          store.students[studentIndex].email = email;
+
+          if (newPin) {
+            store.students[studentIndex].pin = newPin;
+            currentStudent.pin = newPin;
+            document.getElementById("pin-display").textContent = newPin;
+          }
+
+          // Update current student object
+          currentStudent.name = fullName;
+          currentStudent.email = email;
+
+          // Save to localStorage
+          localStorage.setItem(DB_KEY, JSON.stringify(store));
+
+          // Sync to Firebase for cross-device access
+          saveToFirebase();
+
+          // Update display
+          document.getElementById("student-name-display").textContent =
+            fullName;
+          document.getElementById("display-student-name").textContent =
+            fullName;
+          document.getElementById("display-student-info").textContent =
+            `ID: ${currentStudent.idNum} | Program: ${currentStudent.program || "N/A"} | Year: ${currentStudent.year}`;
+
+          // Close modal
+          var modalEl = document.getElementById("pinUpdateModal");
+          var modal = bootstrap.Modal.getInstance(modalEl);
+          modal.hide();
+
+          // Refresh grades to update any display
+          renderStudentGrades();
+
+          alert("Information updated successfully!");
+        }
+      }
+
+      // Show Group Selection Modal
+      function showGroupSelectionModal() {
+        // Populate course dropdown with enrolled courses
+        const courseSelect = document.getElementById("groupCourseSelect");
+        const studentEnrollments = store.enrollments.filter(
+          (e) => e.studentId === currentStudentId,
+        );
+
+        let options = '<option value="">Select Course</option>';
+        studentEnrollments.forEach((enrollment) => {
+          const course = store.courses.find(
+            (c) => c.id === enrollment.courseId,
+          );
+          if (course) {
+            options += `<option value="${course.id}">${course.code} - ${course.title}</option>`;
+          }
+        });
+        courseSelect.innerHTML = options;
+
+        document
+          .getElementById("groupOptionsContainer")
+          .classList.add("d-none");
+        document.getElementById("noGroupsMessage").classList.remove("d-none");
+
+        var modalEl = document.getElementById("groupSelectionModal");
+        var modal = new bootstrap.Modal(modalEl);
+        modal.show();
+      }
+
+      // Load Group Options for selected course
+      function loadGroupOptions() {
+        const courseId = parseInt(
+          document.getElementById("groupCourseSelect").value,
+        );
+        const container = document.getElementById("groupOptionsContainer");
+        const noGroupsMsg = document.getElementById("noGroupsMessage");
+        const groupOptionsDiv = document.getElementById("groupOptions");
+
+        if (!courseId) {
+          container.classList.add("d-none");
+          noGroupsMsg.classList.remove("d-none");
+          return;
+        }
+
+        // Get groups for this course
+        const groups = store.groups
+          ? store.groups.filter((g) => g.courseId === courseId)
+          : [];
+
+        if (groups.length === 0) {
+          container.classList.add("d-none");
+          noGroupsMsg.classList.remove("d-none");
+          return;
+        }
+
+        noGroupsMsg.classList.add("d-none");
+        container.classList.remove("d-none");
+
+        // Render group options as cards with all required features
+        groupOptionsDiv.innerHTML = groups
+          .map((g) => {
+            // Use group's maxMembers or default to 5
+            const maxMembers = g.maxMembers || 5;
+            const currentMembers = g.students ? g.students.length : 0;
+            const availableSlots = maxMembers - currentMembers;
+            const isFull = availableSlots <= 0;
+
+            // Get member names
+            const memberNames = g.students
+              .map((sid) => {
+                const student = store.students.find((s) => s.id === sid);
+                return student ? student.name : "Unknown";
+              })
+              .join(", ");
+
+            const isCurrentStudentInGroup =
+              g.students && g.students.includes(currentStudentId);
+
+            // Track edit count (default to 0 if not set)
+            const nameEditCount = g.nameEditCount || 0;
+            const canEdit = nameEditCount < 2;
+
+            return `
+            <div class="col-md-6 mb-3">
+              <div class="card h-100 ${isCurrentStudentInGroup ? "border-primary border-2" : ""} ${isFull && !isCurrentStudentInGroup ? "opacity-75" : ""}">
+                <div class="card-body">
+                  <div class="d-flex justify-content-between align-items-start mb-2">
+                    <div class="form-check">
+                      <input
+                        class="form-check-input group-radio"
+                        type="radio"
+                        name="groupSelection"
+                        id="group_${g.id}"
+                        value="${g.id}"
+                        ${isCurrentStudentInGroup ? "checked" : ""}
+                        ${isFull && !isCurrentStudentInGroup ? "disabled" : ""}
+                        onchange="showGroupMembers(${g.id})"
+                      >
+                      <label class="form-check-label fw-bold" for="group_${g.id}">
+                        <span id="groupName_${g.id}" class="text-dark">${g.name}</span>
+                        ${nameEditCount > 0 ? `<span class="badge bg-warning text-dark ms-1" title="Name edited ${nameEditCount}/2 times">✏️ ${nameEditCount}/2</span>` : ""}
+                      </label>
+                    </div>
+                    <button class="btn btn-sm ${canEdit ? "btn-outline-primary" : "btn-secondary disabled"} ${isCurrentStudentInGroup ? "" : "d-none"}" 
+                      onclick="editGroupName(${g.id})" 
+                      title="${canEdit ? "Edit group name (" + (2 - nameEditCount) + " attempts remaining)" : "Maximum edits reached (2/2)"}">
+                      <i class="fas fa-edit"></i> ${canEdit ? "Edit Name" : "Max Reached"}
+                    </button>
+                  </div>
+                  
+                  <!-- Member Count -->
+                  <p class="text-muted small mb-1">
+                    <i class="fas fa-users me-1"></i><strong>${currentMembers}</strong> member${currentMembers !== 1 ? "s" : ""} in group
+                  </p>
+                  
+                  <!-- Available Slots -->
+                  <p class="small mb-2 ${isFull ? "text-danger fw-bold" : "text-success"}">
+                    <i class="fas fa-chair me-1"></i>
+                    ${isFull ? '<i class="fas fa-times-circle me-1"></i>Group Full (No slots available)' : '<i class="fas fa-check-circle me-1"></i>' + availableSlots + " slot" + (availableSlots !== 1 ? "s" : "") + " available"}
+                  </p>
+                  
+                  <!-- Groupmate Names -->
+                  <div class="bg-light rounded p-2 mb-0">
+                    <small class="text-muted d-block mb-1"><strong><i class="fas fa-user-friends me-1"></i>Groupmates:</strong></small>
+                    <span class="small ${memberNames ? "text-dark" : "text-muted fst-italic"}">
+                      ${memberNames || "No members yet"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          `;
+          })
+          .join("");
+
+        // Show first group members if any group exists
+        if (groups.length > 0) {
+          showGroupMembers(groups[0].id);
+        }
+      }
+
+      // Show group members when a group is selected
+      function showGroupMembers(groupId) {
+        const group = store.groups.find((g) => g.id === parseInt(groupId));
+        const membersListDiv = document.getElementById("groupMembersList");
+
+        if (!group) {
+          membersListDiv.innerHTML =
+            '<p class="text-muted text-center">Select a group to view members</p>';
+          return;
+        }
+
+        const membersHtml = group.students
+          .map((sid) => {
+            const student = store.students.find((s) => s.id === sid);
+            if (!student) return "";
+
+            const isMe = sid === currentStudentId;
+            return `
+              <div class="d-flex align-items-center justify-content-between py-2 border-bottom">
+                <span>
+                  <i class="fas fa-user ${isMe ? "text-primary" : "text-muted"} me-2"></i>
+                  ${student.name}
+                  ${isMe ? '<span class="badge bg-primary ms-2">You</span>' : ""}
+                </span>
+                <span class="text-muted small">${student.idNum}</span>
+              </div>
+            `;
+          })
+          .join("");
+
+        membersListDiv.innerHTML =
+          membersHtml ||
+          '<p class="text-muted text-center">No members in this group</p>';
+      }
+
+      // Edit group name function (limited to 2 times only)
+      function editGroupName(groupId) {
+        const group = store.groups.find((g) => g.id === parseInt(groupId));
+
+        if (!group) {
+          alert("Group not found");
+          return;
+        }
+
+        // Check if current student is in the group
+        if (!group.students || !group.students.includes(currentStudentId)) {
+          alert("You must be a member of this group to edit its name");
+          return;
+        }
+
+        // Check if max edits reached
+        const nameEditCount = group.nameEditCount || 0;
+        if (nameEditCount >= 2) {
+          alert(
+            "You can only edit the group name twice. Maximum edits reached (2/2).",
+          );
+          return;
+        }
+
+        const remainingEdits = 2 - nameEditCount;
+        const newName = prompt(
+          `Enter new name for "${group.name}" (${remainingEdits} edit${remainingEdits !== 1 ? "s" : ""} remaining):`,
+          group.name,
+        );
+
+        if (newName && newName.trim() !== "" && newName.trim() !== group.name) {
+          group.name = newName.trim();
+          group.nameEditCount = nameEditCount + 1;
+
+          // Save to localStorage
+          localStorage.setItem(DB_KEY, JSON.stringify(store));
+
+          // Sync to Firebase for cross-device access
+          saveToFirebase();
+
+          // Refresh the group options display
+          loadGroupOptions();
+
+          // Show confirmation with remaining edits
+          const newRemaining = 2 - group.nameEditCount;
+          if (newRemaining > 0) {
+            alert(
+              `Group name updated successfully! You have ${newRemaining} edit${newRemaining !== 1 ? "s" : ""} remaining.`,
+            );
+          } else {
+            alert(
+              "Group name updated successfully! You have used all your name edit attempts.",
+            );
+          }
+        } else if (newName && newName.trim() === group.name) {
+          alert("The name is the same as before. No changes made.");
+        }
+      }
+
+      // Confirm group selection
+      function confirmGroupSelection() {
+        const selectedGroupId = document.querySelector(
+          'input[name="groupSelection"]:checked',
+        );
+
+        if (!selectedGroupId) {
+          alert("Please select a group");
+          return;
+        }
+
+        const groupId = parseInt(selectedGroupId.value);
+        const group = store.groups.find((g) => g.id === groupId);
+
+        if (!group) {
+          alert("Group not found");
+          return;
+        }
+
+        // Check if student is already in the group
+        if (!group.students) {
+          group.students = [];
+        }
+
+        if (group.students.includes(currentStudentId)) {
+          // Already in this group, just close modal
+          var modalEl = document.getElementById("groupSelectionModal");
+          var modal = bootstrap.Modal.getInstance(modalEl);
+          modal.hide();
+
+          alert("You are already in this group!");
+          renderStudentGrades();
+          return;
+        }
+
+        // Remove student from all groups in this course
+        const courseId = group.courseId;
+        store.groups.forEach((g) => {
+          if (g.students) {
+            g.students = g.students.filter((sid) => sid !== currentStudentId);
+          }
+        });
+
+        // Add student to selected group
+        const updatedGroup = store.groups.find((g) => g.id === groupId);
+        if (updatedGroup) {
+          if (!updatedGroup.students) {
+            updatedGroup.students = [];
+          }
+          updatedGroup.students.push(currentStudentId);
+        }
+
+        // Save to localStorage
+        localStorage.setItem(DB_KEY, JSON.stringify(store));
+
+        // Sync to Firebase for cross-device access
+        saveToFirebase();
+
+        // Close modal
+        var modalEl = document.getElementById("groupSelectionModal");
+        var modal = bootstrap.Modal.getInstance(modalEl);
+        modal.hide();
+
+        // Refresh grades to show updated group
+        renderStudentGrades();
+
+        alert("Group selection saved!");
+      }
+
+      // Update PIN
+      function updatePIN() {
+        const currentPin = document
+          .getElementById("currentPinInput")
+          .value.trim();
+        const newPin = document.getElementById("newPinInput").value.trim();
+        const confirmPin = document
+          .getElementById("confirmPinInput")
+          .value.trim();
+
+        if (!currentPin || !newPin || !confirmPin) {
+          alert("Please fill in all fields");
+          return;
+        }
+
+        // Verify current PIN
+        if (currentPin.toUpperCase() !== currentStudent.pin.toUpperCase()) {
+          alert("Current PIN is incorrect");
+          return;
+        }
+
+        // Verify new PIN matches confirmation
+        if (newPin !== confirmPin) {
+          alert("New PIN and confirmation do not match");
+          return;
+        }
+
+        // Update PIN in student data
+        const studentIndex = store.students.findIndex(
+          (s) => s.id === currentStudentId,
+        );
+        if (studentIndex !== -1) {
+          store.students[studentIndex].pin = newPin;
+          currentStudent.pin = newPin;
+
+          // Save to localStorage
+          localStorage.setItem(DB_KEY, JSON.stringify(store));
+
+          // Update display
+          document.getElementById("pin-display").textContent = newPin;
+
+          // Close modal
+          var modalEl = document.getElementById("pinUpdateModal");
+          var modal = bootstrap.Modal.getInstance(modalEl);
+          modal.hide();
+
+          alert("PIN updated successfully!");
+        }
+      }
+
+      // Get letter grade helper function
+      function getLetterGrade(percentage) {
+        const sortedScale = [...store.gradingScale].sort(
+          (a, b) => b.min - a.min,
+        );
+        return sortedScale.find((s) => percentage >= s.min)?.label || "N/A";
+      }
+
+      // Get group information HTML for a student's course
+      function getGroupInfoHtml(courseId, studentId) {
+        // Find groups for this course that contain this student
+        var groups = store.groups || [];
+        var studentGroups = groups.filter(function (g) {
+          return g.courseId === courseId && g.students.includes(studentId);
+        });
+
+        if (studentGroups.length === 0) {
+          return "";
+        }
+
+        var html =
+          '<div class="mb-4 p-3 bg-purple-50 rounded-xl border border-purple-200">' +
+          '<p class="text-xs text-purple-600 font-bold uppercase mb-2"><i class="fas fa-users mr-1"></i>Group Assignment</p>';
+
+        studentGroups.forEach(function (g) {
+          var memberNames = g.students
+            .map(function (sid) {
+              var student = store.students.find(function (s) {
+                return s.id === sid;
+              });
+              return student ? student.name : "Unknown";
+            })
+            .join(", ");
+
+          html +=
+            '<div class="mb-2">' +
+            '<span class="font-bold text-purple-700">' +
+            g.name +
+            "</span>" +
+            '<p class="text-sm text-slate-600">Members: ' +
+            memberNames +
+            "</p>" +
+            "</div>";
+        });
+
+        html += "</div>";
+        return html;
+      }
+
+      // Render student's grades per course
+      function renderStudentGrades() {
+        const container = document.getElementById("courses-grades");
+        const noEnrollments = document.getElementById("no-enrollments");
+
+        // Get student's enrollments
+        const studentEnrollments = store.enrollments.filter(
+          (e) => e.studentId === currentStudentId,
+        );
+
+        if (studentEnrollments.length === 0) {
+          container.classList.add("hidden");
+          noEnrollments.classList.remove("hidden");
+          document.getElementById("overall-average").textContent = "--%";
+          document.getElementById("overall-letter-grade").textContent = "--";
+          return;
+        }
+
+        container.classList.remove("hidden");
+        noEnrollments.classList.add("hidden");
+
+        let totalAverage = 0;
+        let courseCount = 0;
+        let allLetterGrades = [];
+
+        container.innerHTML = studentEnrollments
+          .map((enrollment) => {
+            const course = store.courses.find(
+              (c) => c.id === enrollment.courseId,
+            );
+            if (!course) return "";
+
+            // Get grades for this student-course combination
+            const key = currentStudentId + "_" + course.id;
+            const grades = store.grades[key] || {
+              written: {
+                p: 0,
+                m: 0,
+                pf: 0,
+                f: 0,
+                pMonth: "",
+                mMonth: "",
+                pfMonth: "",
+                fMonth: "",
+              },
+              quiz: { q1: 0, q2: 0, q3: 0, q4: 0 },
+              pt: { p1: 0, p2: 0, p3: 0, p4: 0 },
+              project: { p1: 0, p2: 0 },
+            };
+
+            // Calculate percentages
+            const hps = store.hps;
+            const weights = store.weights;
+
+            // Written Exam breakdown - get assessment titles
+            const courseAssessments = store.assessments.filter(
+              (a) => a.courseId === course.id,
+            );
+
+            // Get HPS per assessment from new format
+            const courseKey = "course_" + course.id;
+            const hpsData =
+              store.hps.perAssessment && store.hps.perAssessment[courseKey]
+                ? store.hps.perAssessment[courseKey]
+                : {};
+
+            const getAssessmentTitle = (type, index) => {
+              // First try to get from new format (hps.perAssessment)
+              if (hpsData[type]) {
+                const keys = Object.keys(hpsData[type]);
+                if (index < keys.length) {
+                  const key = keys[index];
+                  const assessment = courseAssessments.find(
+                    (a) => a.type === type && a.subType === key,
+                  );
+                  return {
+                    title: assessment
+                      ? assessment.title
+                      : type === "written"
+                        ? ["Prelim", "Midterm", "Pre-Final", "Final"][index]
+                        : null,
+                    date: assessment ? assessment.date : null,
+                    hps: hpsData[type][key],
+                  };
+                }
+              }
+              // Fallback to old format
+              const filtered = courseAssessments.filter((a) => a.type === type);
+              if (filtered.length > index) {
+                return {
+                  title: filtered[index].title,
+                  date: filtered[index].date,
+                };
+              }
+              return { title: null, date: null };
+            };
+
+            const writtenExams = [
+              {
+                name: "Prelim",
+                score: grades.written.p,
+                month: grades.written.pMonth || "-",
+                ...getAssessmentTitle("written", 0),
+              },
+              {
+                name: "Midterm",
+                score: grades.written.m,
+                month: grades.written.mMonth || "-",
+                ...getAssessmentTitle("written", 1),
+              },
+              {
+                name: "Pre-Final",
+                score: grades.written.pf,
+                month: grades.written.pfMonth || "-",
+                ...getAssessmentTitle("written", 2),
+              },
+              {
+                name: "Final",
+                score: grades.written.f,
+                month: grades.written.fMonth || "-",
+                ...getAssessmentTitle("written", 3),
+              },
+            ];
+            const writtenTotal = writtenExams.reduce(
+              (sum, e) => sum + e.score,
+              0,
+            );
+            const writtenPct = (writtenTotal / 4 / hps.exam) * 100;
+
+            // Quiz breakdown - dynamic count with title and date
+            const quizCount = grades.quizCount || 4;
+            let quizExams = [];
+            for (let i = 1; i <= quizCount; i++) {
+              const savedTitle = grades.quiz[`q${i}Title`] || null;
+              const savedDate = grades.quiz[`q${i}Date`] || null;
+              const assessmentInfo = getAssessmentTitle("quiz", i - 1);
+              quizExams.push({
+                name: savedTitle || assessmentInfo.title || `Quiz ${i}`,
+                score: grades.quiz[`q${i}`] || 0,
+                month: grades.quiz[`q${i}Month`] || "-",
+                date: savedDate || assessmentInfo.date || "-",
+                hps: assessmentInfo.hps || hps.quiz,
+              });
+            }
+            const quizTotal = quizExams.reduce((sum, e) => sum + e.score, 0);
+            const quizPct =
+              quizCount > 0 ? (quizTotal / quizCount / hps.quiz) * 100 : 0;
+
+            // Performance Task breakdown - dynamic count with title and date
+            const ptCount = grades.ptCount || 4;
+            let ptExams = [];
+            for (let i = 1; i <= ptCount; i++) {
+              const savedTitle = grades.pt[`p${i}Title`] || null;
+              const savedDate = grades.pt[`p${i}Date`] || null;
+              const assessmentInfo = getAssessmentTitle("pt", i - 1);
+              ptExams.push({
+                name: savedTitle || assessmentInfo.title || `PT ${i}`,
+                score: grades.pt[`p${i}`] || 0,
+                month: grades.pt[`p${i}Month`] || "-",
+                date: savedDate || assessmentInfo.date || "-",
+                hps: assessmentInfo.hps || hps.pt,
+              });
+            }
+            const ptTotal = ptExams.reduce((sum, e) => sum + e.score, 0);
+            const ptPct = ptCount > 0 ? (ptTotal / ptCount / hps.pt) * 100 : 0;
+
+            // Project breakdown
+            const projectExams = [
+              {
+                name: "Project 1",
+                score: grades.project.p1,
+                month: grades.project.p1Month || "-",
+                ...getAssessmentTitle("project", 0),
+                hps: (() => {
+                  const info = getAssessmentTitle("project", 0);
+                  return info.hps || hps.project;
+                })(),
+              },
+              {
+                name: "Project 2",
+                score: grades.project.p2,
+                month: grades.project.p2Month || "-",
+                ...getAssessmentTitle("project", 1),
+                hps: (() => {
+                  const info = getAssessmentTitle("project", 1);
+                  return info.hps || hps.project;
+                })(),
+              },
+            ];
+            const projectTotal = projectExams.reduce(
+              (sum, e) => sum + e.score,
+              0,
+            );
+            const projPct =
+              projectExams.length > 0
+                ? (projectTotal /
+                    projectExams.reduce((sum, e) => sum + e.hps, 0)) *
+                  100
+                : 0;
+
+            // Calculate weighted total
+            const total =
+              (writtenPct * weights.written) / 100 +
+              (quizPct * weights.quiz) / 100 +
+              (ptPct * weights.pt) / 100 +
+              (projPct * weights.project) / 100;
+
+            // Get letter grade
+            const letterGrade = getLetterGrade(total);
+
+            if (total > 0) {
+              totalAverage += total;
+              courseCount++;
+              allLetterGrades.push({ grade: letterGrade, pct: total });
+            }
+
+            // Build detailed assessment HTML with collapsible dropdowns
+            let assessmentsHtml = "";
+
+            // Written Exam Details (Collapsible with Table)
+            assessmentsHtml += `
+              <div class="mb-3">
+                <details class="group" open>
+                  <summary class="flex justify-between items-center cursor-pointer text-sm font-bold text-slate-700 hover:text-blue-600 transition-colors">
+                    <span><i class="fas fa-file-alt mr-2"></i>Written Exam (${weights.written}%)</span>
+                    <span class="font-black text-blue-600">${writtenPct.toFixed(1)}%</span>
+                  </summary>
+                  <div class="mt-3 bg-slate-50 rounded-lg p-3">
+                    <table class="table table-sm">
+                      <thead>
+                        <tr>
+                          <th>Assessment</th>
+                          <th>Date Taken</th>
+                          <th>Score</th>
+                          <th>Percentage</th>
+                          <th>Letter</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        ${writtenExams
+                          .map(
+                            (exam) => `
+                          <tr>
+                            <td>${exam.name}${exam.title ? " - " + exam.title : ""}</td>
+                            <td>${exam.date || exam.month}</td>
+                            <td>${exam.score}/${hps.exam}</td>
+                            <td>${hps.exam > 0 ? ((exam.score / hps.exam) * 100).toFixed(1) : 0}%</td>
+                            <td>${getLetterGrade(hps.exam > 0 ? (exam.score / hps.exam) * 100 : 0)}</td>
+                          </tr>
+                        `,
+                          )
+                          .join("")}
+                        <tr class="border-top">
+                          <td colspan="3" class="font-bold">Written Average</td>
+                          <td class="font-black text-blue-600">${writtenPct.toFixed(1)}%</td>
+                          <td>${getLetterGrade(writtenPct)}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </details>
+              </div>
+            `;
+
+            // Quiz Details (Collapsible with Table)
+            assessmentsHtml += `
+              <div class="mb-3">
+                <details class="group" open>
+                  <summary class="flex justify-between items-center cursor-pointer text-sm font-bold text-slate-700 hover:text-blue-600 transition-colors">
+                    <span><i class="fas fa-question-circle mr-2"></i>Quiz (${weights.quiz}%)</span>
+                    <span class="font-black text-blue-600">${quizPct.toFixed(1)}%</span>
+                  </summary>
+                  <div class="mt-3 bg-slate-50 rounded-lg p-3">
+                    <table class="table table-sm">
+                      <thead>
+                        <tr>
+                          <th>Assessment</th>
+                          <th>Date Taken</th>
+                          <th>Score</th>
+                          <th>Percentage</th>
+                          <th>Letter</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        ${quizExams
+                          .map(
+                            (exam) => `
+                          <tr>
+                            <td>${exam.name}</td>
+                            <td>${exam.date}</td>
+                            <td>${exam.score}/${exam.hps}</td>
+                            <td>${exam.hps > 0 ? ((exam.score / exam.hps) * 100).toFixed(1) : 0}%</td>
+                            <td>${getLetterGrade(exam.hps > 0 ? (exam.score / exam.hps) * 100 : 0)}</td>
+                          </tr>
+                        `,
+                          )
+                          .join("")}
+                        <tr class="border-top">
+                          <td colspan="3" class="font-bold">Quiz Average</td>
+                          <td class="font-black text-blue-600">${quizPct.toFixed(1)}%</td>
+                          <td>${getLetterGrade(quizPct)}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </details>
+              </div>
+            `;
+
+            // Performance Task Details (Collapsible with Table)
+            assessmentsHtml += `
+              <div class="mb-3">
+                <details class="group" open>
+                  <summary class="flex justify-between items-center cursor-pointer text-sm font-bold text-slate-700 hover:text-blue-600 transition-colors">
+                    <span><i class="fas fa-clipboard-check mr-2"></i>Performance Task (${weights.pt}%)</span>
+                    <span class="font-black text-blue-600">${ptPct.toFixed(1)}%</span>
+                  </summary>
+                  <div class="mt-3 bg-slate-50 rounded-lg p-3">
+                    <table class="table table-sm">
+                      <thead>
+                        <tr>
+                          <th>Assessment</th>
+                          <th>Date Taken</th>
+                          <th>Score</th>
+                          <th>Percentage</th>
+                          <th>Letter</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        ${ptExams
+                          .map(
+                            (exam) => `
+                          <tr>
+                            <td>${exam.name}</td>
+                            <td>${exam.date}</td>
+                            <td>${exam.score}/${exam.hps}</td>
+                            <td>${exam.hps > 0 ? ((exam.score / exam.hps) * 100).toFixed(1) : 0}%</td>
+                            <td>${getLetterGrade(exam.hps > 0 ? (exam.score / exam.hps) * 100 : 0)}</td>
+                          </tr>
+                        `,
+                          )
+                          .join("")}
+                        <tr class="border-top">
+                          <td colspan="3" class="font-bold">PT Average</td>
+                          <td class="font-black text-blue-600">${ptPct.toFixed(1)}%</td>
+                          <td>${getLetterGrade(ptPct)}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </details>
+              </div>
+            `;
+
+            // Project Details (Collapsible with Table)
+            assessmentsHtml += `
+              <div class="mb-3">
+                <details class="group" open>
+                  <summary class="flex justify-between items-center cursor-pointer text-sm font-bold text-slate-700 hover:text-blue-600 transition-colors">
+                    <span><i class="fas fa-project-diagram mr-2"></i>Project (${weights.project}%)</span>
+                    <span class="font-black text-blue-600">${projPct.toFixed(1)}%</span>
+                  </summary>
+                  <div class="mt-3 bg-slate-50 rounded-lg p-3">
+                    <table class="table table-sm">
+                      <thead>
+                        <tr>
+                          <th>Assessment</th>
+                          <th>Date Taken</th>
+                          <th>Score</th>
+                          <th>Percentage</th>
+                          <th>Letter</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        ${projectExams
+                          .map(
+                            (exam) => `
+                          <tr>
+                            <td>${exam.name}${exam.title ? " - " + exam.title : ""}</td>
+                            <td>${exam.date || exam.month}</td>
+                            <td>${exam.score}/${exam.hps}</td>
+                            <td>${exam.hps > 0 ? ((exam.score / exam.hps) * 100).toFixed(1) : 0}%</td>
+                            <td>${getLetterGrade(exam.hps > 0 ? (exam.score / exam.hps) * 100 : 0)}</td>
+                          </tr>
+                        `,
+                          )
+                          .join("")}
+                        <tr class="border-top">
+                          <td colspan="3" class="font-bold">Project Average</td>
+                          <td class="font-black text-blue-600">${projPct.toFixed(1)}%</td>
+                          <td>${getLetterGrade(projPct)}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </details>
+              </div>
+            `;
+
+            return `
+          <div class="bg-white rounded-[2rem] shadow-sm border overflow-hidden fade-in">
+            <div class="p-6 border-b bg-gradient-to-r from-blue-600 to-blue-800 text-white">
+              <h3 class="font-black text-xl">${course.code}</h3>
+              <p class="text-blue-200 text-sm font-medium">${course.title}</p>
+            </div>
+            <div class="p-6">
+              <div class="mb-4">
+                <p class="text-xs text-slate-400 font-bold uppercase mb-1">Instructor</p>
+                <p class="font-bold">${course.instructor || "TBA"}</p>
+              </div>
+              <div class="mb-4">
+                <p class="text-xs text-slate-400 font-bold uppercase mb-1">Schedule</p>
+                <p class="font-bold">${course.schedule || "TBA"}</p>
+              </div>
+              
+              <!-- Group Information -->
+              ${getGroupInfoHtml(course.id, currentStudentId)}
+              
+              <!-- Detailed Assessments (Collapsible) -->
+              ${assessmentsHtml}
+              
+              <!-- Total Summary -->
+              <div class="border-t-2 border-blue-200 pt-4 mt-4 bg-blue-50 rounded-xl p-4">
+                <div class="flex justify-between items-center">
+                  <div>
+                    <p class="text-xs text-blue-400 font-bold uppercase">Total Grade</p>
+                    <p class="font-black text-3xl text-blue-600">${total.toFixed(1)}%</p>
+                  </div>
+                  <div class="text-right">
+                    <p class="text-xs text-blue-400 font-bold uppercase">Letter Grade</p>
+                    <span class="px-6 py-3 bg-blue-600 text-white rounded-xl text-2xl font-black">${letterGrade}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+          })
+          .join("");
+
+        // Update overall average and letter grade
+        const overallAvg = courseCount > 0 ? totalAverage / courseCount : 0;
+        document.getElementById("overall-average").textContent =
+          courseCount > 0 ? overallAvg.toFixed(1) + "%" : "--%";
+
+        // Calculate overall letter grade
+        const overallLetterGrade =
+          courseCount > 0 ? getLetterGrade(overallAvg) : "--";
+        document.getElementById("overall-letter-grade").textContent =
+          overallLetterGrade;
+      }
+
+      // Handle Enter key for login
+      document
+        .getElementById("student-id-input")
+        .addEventListener("keypress", function (e) {
+          if (e.key === "Enter") {
+            handleStudentLogin();
+          }
+        });
+    </script>
+  </body>
+</html>

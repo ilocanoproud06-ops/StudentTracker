@@ -1,0 +1,5478 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AcademicPro - Admin Portal</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.29/jspdf.plugin.autotable.min.js"></script>
+    <!-- Firebase SDK (Optional - for cloud sync) -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    <!-- Local Storage Sync Manager (works offline) -->
+    <script src="firebase-config.js"></script>
+    <style>
+      /* Mobile responsive styles */
+      @media (max-width: 767.98px) {
+        #sidebar {
+          transform: translateX(-100%);
+          width: 100% !important;
+          max-width: 280px;
+          height: 100vh;
+        }
+
+        #sidebar.show {
+          transform: translateX(0);
+        }
+
+        #mainContent {
+          margin-left: 0 !important;
+        }
+
+        .col-md-10 {
+          width: 100% !important;
+          flex: 0 0 100% !important;
+          max-width: 100% !important;
+        }
+
+        /* Overlay when sidebar is open on mobile */
+        .sidebar-overlay {
+          display: none;
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: rgba(0, 0, 0, 0.5);
+          z-index: 999;
+        }
+
+        .sidebar-overlay.show {
+          display: block;
+        }
+
+        /* Adjust table overflow for mobile */
+        .table-responsive {
+          overflow-x: auto;
+          -webkit-overflow-scrolling: touch;
+        }
+
+        /* Make cards full width on mobile */
+        .card {
+          margin-bottom: 1rem;
+        }
+      }
+
+      @media (min-width: 768px) {
+        #sidebar {
+          position: sticky !important;
+          transform: none !important;
+        }
+      }
+    </style>
+    <script>
+      // Storage mode - default to localStorage for offline use
+      // Set to true only if you want cloud sync with Firebase
+      window.FORCE_LOCAL_ONLY = true; // Always use localStorage first (works offline)
+    </script>
+  </head>
+  <body>
+    <!-- Mobile Header with Hamburger Menu -->
+    <nav class="navbar navbar-dark bg-dark d-md-none p-3">
+      <div class="container-fluid p-0">
+        <span class="navbar-brand mb-0 h5">
+          <i class="fas fa-graduation-cap me-2"></i>AcademicPro
+        </span>
+        <button
+          class="navbar-toggler"
+          type="button"
+          id="sidebarToggle"
+          onclick="toggleSidebar()"
+        >
+          <span class="navbar-toggler-icon"></span>
+        </button>
+      </div>
+    </nav>
+
+    <div class="d-flex" id="mainContent" style="display: flex !important">
+      <!-- Sidebar -->
+      <div
+        class="bg-dark col-md-2 p-3"
+        id="sidebar"
+        style="
+          min-height: 100vh;
+          position: fixed;
+          z-index: 1000;
+          width: inherit;
+          transition: transform 0.3s ease-in-out;
+        "
+      >
+        <h5 class="text-white mb-4">
+          <i class="fas fa-graduation-cap me-2"></i>AcademicPro
+        </h5>
+        <!-- Storage Mode Indicator -->
+        <div class="mb-3 px-2">
+          <div id="storageModeIndicator" class="badge bg-info w-100 py-2">
+            <i class="fas fa-save me-1"></i>
+            <span data-storage-mode>Local Mode</span>
+          </div>
+        </div>
+        <ul class="nav flex-column">
+          <li class="nav-item">
+            <a
+              class="nav-link active"
+              href="javascript:void(0)"
+              data-section="dashboard"
+              onclick="showSection('dashboard')"
+              ><i class="fas fa-chart-line me-2"></i>Dashboard</a
+            >
+          </li>
+          <li class="nav-item">
+            <a
+              class="nav-link"
+              href="javascript:void(0)"
+              data-section="courses"
+              onclick="showSection('courses')"
+              ><i class="fas fa-book me-2"></i>Courses</a
+            >
+          </li>
+          <li class="nav-item">
+            <a
+              class="nav-link"
+              href="javascript:void(0)"
+              data-section="students"
+              onclick="showSection('students')"
+              ><i class="fas fa-users me-2"></i>Students</a
+            >
+          </li>
+          <li class="nav-item">
+            <a
+              class="nav-link"
+              href="javascript:void(0)"
+              data-section="enrollment"
+              onclick="showSection('enrollment')"
+              ><i class="fas fa-user-plus me-2"></i>Enrollment</a
+            >
+          </li>
+          <li class="nav-item">
+            <a
+              class="nav-link"
+              href="javascript:void(0)"
+              data-section="grades"
+              onclick="showSection('grades')"
+              ><i class="fas fa-clipboard-list me-2"></i>Grade Entry</a
+            >
+          </li>
+          <li class="nav-item">
+            <a
+              class="nav-link"
+              href="javascript:void(0)"
+              data-section="grading"
+              onclick="showSection('grading')"
+              ><i class="fas fa-scale-balanced me-2"></i>Grading Scale</a
+            >
+          </li>
+          <li class="nav-item">
+            <a
+              class="nav-link"
+              href="javascript:void(0)"
+              data-section="assessmentHps"
+              onclick="showSection('assessmentHps')"
+              ><i class="fas fa-calculator me-2"></i>Assessment & HPS</a
+            >
+          </li>
+          <li class="nav-item">
+            <a
+              class="nav-link"
+              href="javascript:void(0)"
+              data-section="trash"
+              onclick="showSection('trash')"
+              ><i class="fas fa-trash me-2"></i>Trash</a
+            >
+          </li>
+          <li class="nav-item">
+            <a
+              class="nav-link"
+              href="javascript:void(0)"
+              data-section="groups"
+              onclick="showSection('groups')"
+              ><i class="fas fa-users me-2"></i>Group Management</a
+            >
+          </li>
+        </ul>
+        <a
+          class="nav-link text-danger mt-5"
+          href="#"
+          onclick="window.location.href = 'welcome_admin.html'"
+          ><i class="fas fa-sign-out-alt me-2"></i>Logout</a
+        >
+
+        <!-- Data Management Section -->
+        <div class="mt-4 px-2">
+          <hr class="border-secondary" />
+          <p class="text-muted small mb-2">
+            <i class="fas fa-database me-1"></i> Data Management
+          </p>
+          <!-- Export Status Indicator -->
+          <div id="exportStatusIndicator" class="mb-2">
+            <div data-needs-export class="badge bg-success">
+              <i class="fas fa-check me-1"></i> Up to Date
+            </div>
+          </div>
+          <!-- Export Notification (hidden by default) -->
+          <div
+            id="exportNotification"
+            class="alert alert-success py-1 px-2 mb-2 small d-none"
+          >
+            <i class="fas fa-check-circle me-1"></i> Data saved!
+          </div>
+          <button
+            class="btn btn-sm btn-outline-light w-100 mb-2"
+            onclick="exportData()"
+          >
+            <i class="fas fa-download me-1"></i> Export Backup
+          </button>
+          <button
+            class="btn btn-sm btn-outline-warning w-100 mb-2"
+            onclick="exportSharedData()"
+          >
+            <i class="fas fa-share-alt me-1"></i> Export Shared Data
+          </button>
+          <small class="text-muted d-block mb-2"
+            >For students to view grades</small
+          >
+          <input
+            type="file"
+            id="importFile"
+            accept=".json"
+            style="display: none"
+            onchange="importData(this)"
+          />
+          <button
+            class="btn btn-sm btn-outline-light w-100"
+            onclick="document.getElementById('importFile').click()"
+          >
+            <i class="fas fa-upload me-1"></i> Import Backup
+          </button>
+          <!-- Show URLs Button -->
+          <button
+            class="btn btn-sm btn-success w-100 mt-2"
+            onclick="showUrlModal()"
+          >
+            <i class="fas fa-link me-1"></i> Show Access URLs
+          </button>
+        </div>
+      </div>
+
+      <div class="col-md-10 p-4">
+        <div id="dashboardSection" class="section">
+          <h4 class="fw-bold mb-4">Dashboard</h4>
+          <div class="row g-4 mb-4">
+            <div class="col-md-3">
+              <div
+                class="card p-4"
+                style="
+                  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+                  color: white;
+                "
+              >
+                <div class="d-flex justify-content-between align-items-center">
+                  <div>
+                    <h3 id="totalCourses" class="mb-0">0</h3>
+                    <p class="mb-0 opacity-75">Courses</p>
+                  </div>
+                  <i class="fas fa-book fa-2x opacity-50"></i>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div
+                class="card p-4"
+                style="
+                  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+                  color: white;
+                "
+              >
+                <div class="d-flex justify-content-between align-items-center">
+                  <div>
+                    <h3 id="totalStudents" class="mb-0">0</h3>
+                    <p class="mb-0 opacity-75">Students</p>
+                  </div>
+                  <i class="fas fa-users fa-2x opacity-50"></i>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div
+                class="card p-4"
+                style="
+                  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+                  color: white;
+                "
+              >
+                <div class="d-flex justify-content-between align-items-center">
+                  <div>
+                    <h3 id="totalEnrollments" class="mb-0">0</h3>
+                    <p class="mb-0 opacity-75">Enrollments</p>
+                  </div>
+                  <i class="fas fa-user-graduate fa-2x opacity-50"></i>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div
+                class="card p-4"
+                style="
+                  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+                  color: white;
+                "
+              >
+                <div class="d-flex justify-content-between align-items-center">
+                  <div>
+                    <h3 id="totalSections" class="mb-0">0</h3>
+                    <p class="mb-0 opacity-75">Sections</p>
+                  </div>
+                  <i class="fas fa-layer-group fa-2x opacity-50"></i>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Grade Summary Section -->
+          <div class="card">
+            <div class="card-header bg-white border-bottom">
+              <div class="d-flex justify-content-between align-items-center">
+                <h5 class="mb-0 fw-bold">
+                  <i class="fas fa-chart-bar me-2 text-primary"></i>Grade
+                  Summary
+                </h5>
+                <div class="d-flex gap-2 align-items-center">
+                  <select
+                    class="form-select form-select-sm"
+                    id="dashboardGradeCourseFilter"
+                    style="width: 250px"
+                    onchange="renderDashboardGradeSummary()"
+                  >
+                    <option value="">All Courses</option>
+                  </select>
+                  <button
+                    class="btn btn-sm btn-success"
+                    onclick="downloadDashboardGradePDF()"
+                  >
+                    <i class="fas fa-download me-1"></i> Download PDF
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div class="card-body p-0">
+              <div class="table-responsive">
+                <table
+                  class="table table-hover mb-0"
+                  id="dashboardGradesTable"
+                  style="min-width: 900px"
+                >
+                  <thead class="table-light">
+                    <tr>
+                      <th class="ps-4">Student Name</th>
+                      <th>Course</th>
+                      <th>Written %</th>
+                      <th>Quiz %</th>
+                      <th>Lab %</th>
+                      <th>Project %</th>
+                      <th>Total %</th>
+                      <th>Grade</th>
+                    </tr>
+                  </thead>
+                  <tbody id="dashboardGradesTableBody">
+                    <tr>
+                      <td colspan="8" class="text-center text-muted py-4">
+                        <i class="fas fa-info-circle me-2"></i>Select a course
+                        or view all grades below
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="coursesSection" class="section d-none">
+          <div class="d-flex justify-content-between mb-4">
+            <h4 class="fw-bold mb-0">Course Management (CRUD)</h4>
+            <button
+              class="btn btn-primary"
+              data-bs-toggle="modal"
+              data-bs-target="#courseModal"
+            >
+              + Add Course
+            </button>
+          </div>
+          <div class="card">
+            <div class="card-body">
+              <table class="table" id="coursesTable">
+                <thead>
+                  <tr>
+                    <th>Code</th>
+                    <th>Title</th>
+                    <th>Schedule</th>
+                    <th>Room</th>
+                    <th>Instructor</th>
+                    <th>Lab</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div id="studentsSection" class="section d-none">
+          <div class="d-flex justify-content-between mb-4">
+            <h4 class="fw-bold mb-0">Student Management</h4>
+            <div class="d-flex gap-2">
+              <select
+                class="form-select"
+                id="studentFilterProgram"
+                style="width: 200px"
+                onchange="renderStudents()"
+              >
+                <option value="">All Programs</option>
+                <option value="IT">BSIT - Information Technology</option>
+                <option value="CS">BSCS - Computer Science</option>
+                <option value="IS">BSIS - Information Systems</option>
+                <option value="CE">BSCE - Computer Engineering</option>
+                <option value="EE">BSEE - Electrical Engineering</option>
+                <option value="ME">BSME - Mechanical Engineering</option>
+                <option value="BA">BSA - Accountancy</option>
+                <option value="MA">BSMA - Management Accounting</option>
+                <option value="HM">BSHM - Hospitality Management</option>
+                <option value="TM">BSTM - Tourism Management</option>
+              </select>
+              <select
+                class="form-select"
+                id="studentDisplayLimit"
+                style="width: 150px"
+                onchange="renderStudents()"
+              >
+                <option value="5">Show 5 Students</option>
+                <option value="10">Show 10 Students</option>
+                <option value="25">Show 25 Students</option>
+                <option value="50">Show 50 Students</option>
+                <option value="100">Show 100 Students</option>
+                <option value="all">Show All</option>
+              </select>
+              <button
+                class="btn btn-primary"
+                data-bs-toggle="modal"
+                data-bs-target="#studentModal"
+              >
+                + Add Student
+              </button>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-body">
+              <table class="table" id="studentsTable">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Program</th>
+                    <th>Name</th>
+                    <th>PIN</th>
+                    <th>Email</th>
+                    <th>Year</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div id="enrollmentSection" class="section d-none">
+          <h4 class="fw-bold mb-4">Course Enrollment</h4>
+          <div class="row">
+            <div class="col-md-5">
+              <div class="card">
+                <div class="card-header">
+                  <h5 class="mb-0">Enroll Students</h5>
+                </div>
+                <div class="card-body">
+                  <div class="mb-3">
+                    <label class="form-label">Select Course</label>
+                    <select
+                      class="form-select"
+                      id="enrollCourse"
+                      onchange="renderStudentChecklist()"
+                      required
+                    >
+                      <option value="">Select Course</option>
+                    </select>
+                  </div>
+                  <div class="mb-3">
+                    <label class="form-label">Academic Year</label>
+                    <input
+                      type="text"
+                      class="form-control"
+                      id="enrollYear"
+                      placeholder="e.g., 2024-2025"
+                      required
+                    />
+                  </div>
+                  <div class="mb-3">
+                    <label class="form-label">Semester</label>
+                    <select class="form-select" id="enrollSemester">
+                      <option>1st Semester</option>
+                      <option>2nd Semester</option>
+                    </select>
+                  </div>
+                  <div class="mb-3">
+                    <div
+                      class="d-flex justify-content-between align-items-center mb-2"
+                    >
+                      <label class="form-label mb-0">Select Students</label>
+                      <div>
+                        <button
+                          type="button"
+                          class="btn btn-sm btn-outline-secondary me-1"
+                          onclick="selectAllStudents()"
+                        >
+                          Select All
+                        </button>
+                        <button
+                          type="button"
+                          class="btn btn-sm btn-outline-secondary"
+                          onclick="deselectAllStudents()"
+                        >
+                          Deselect All
+                        </button>
+                      </div>
+                    </div>
+                    <div
+                      id="studentChecklist"
+                      class="border rounded p-2"
+                      style="max-height: 300px; overflow-y: auto"
+                    >
+                      <p class="text-muted text-center py-3">
+                        Select a course to see students
+                      </p>
+                    </div>
+                    <small class="text-muted" id="studentCountDisplay"></small>
+                  </div>
+                  <button
+                    class="btn btn-primary w-100"
+                    onclick="enrollSelectedStudents()"
+                  >
+                    Enroll Selected Students
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-7">
+              <div class="card">
+                <div class="card-header">
+                  <div
+                    class="d-flex justify-content-between align-items-center mb-2"
+                  >
+                    <h5 class="mb-0">Enrollment List</h5>
+                    <button
+                      class="btn btn-sm btn-success"
+                      onclick="downloadEnrollmentPDF()"
+                    >
+                      <i class="fas fa-download me-1"></i> Download PDF
+                    </button>
+                  </div>
+                  <div class="row g-2">
+                    <div class="col-md-6">
+                      <select
+                        class="form-select form-select-sm"
+                        id="filterCourseSelect"
+                        onchange="renderEnrollment(true)"
+                      >
+                        <option value="">All Courses</option>
+                      </select>
+                    </div>
+                    <div class="col-md-6">
+                      <input
+                        type="text"
+                        class="form-control form-control-sm"
+                        id="searchEnrollment"
+                        placeholder="Search student..."
+                        onkeyup="renderEnrollment(true)"
+                      />
+                    </div>
+                  </div>
+                </div>
+                <div class="card-body">
+                  <table class="table table-sm" id="enrollmentsTable">
+                    <thead>
+                      <tr>
+                        <th>Student</th>
+                        <th>Course</th>
+                        <th>Schedule</th>
+                        <th>Year/Sem</th>
+                        <th></th>
+                      </tr>
+                    </thead>
+                    <tbody></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="gradesSection" class="section d-none">
+          <h4 class="fw-bold mb-4">Grade Entry</h4>
+
+          <!-- 1. Course Option -->
+          <div class="card mb-4">
+            <div class="card-header">
+              <h5 class="mb-0">1. Course Option</h5>
+            </div>
+            <div class="card-body">
+              <div class="row">
+                <div class="col-md-6">
+                  <label class="form-label">Select Course</label>
+                  <select
+                    class="form-select"
+                    id="gradeCourseSelect"
+                    onchange="onCourseChanged()"
+                  >
+                    <option value="">Select Course</option>
+                  </select>
+                  <small id="courseScheduleDisplay" class="text-muted"></small>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label">Assessment Type</label>
+                  <select
+                    class="form-select"
+                    id="examTypeSelect"
+                    onchange="
+                      toggleExamFields();
+                      disableOtherAssessmentTypes();
+                      renderGradeEntryTable();
+                    "
+                  >
+                    <optgroup label="Major Exams">
+                      <option value="written">Written Exam</option>
+                    </optgroup>
+                    <optgroup label="Quizzes" id="quizOptGroup">
+                      <option value="quiz">Quizzes</option>
+                    </optgroup>
+                    <optgroup
+                      label="Performance Tasks"
+                      id="ptOptGroup"
+                      style="display: none"
+                    >
+                      <option value="pt">Laboratories</option>
+                      <option value="project">Project</option>
+                    </optgroup>
+                  </select>
+                </div>
+              </div>
+              <!-- Course-specific options -->
+              <div class="row mt-3">
+                <div
+                  class="col-md-6"
+                  id="projectOptionDiv"
+                  style="display: none"
+                >
+                  <div class="form-check">
+                    <input
+                      type="checkbox"
+                      class="form-check-input"
+                      id="enableProject"
+                      onchange="toggleProjectFields()"
+                    />
+                    <label class="form-check-label" for="enableProject">
+                      Enable Project for this course
+                    </label>
+                  </div>
+                  <div class="mt-2" id="projectCountDiv" style="display: none">
+                    <label class="me-2">Number of Projects:</label>
+                    <select
+                      class="form-select form-select-sm d-inline-block w-auto"
+                      id="projectCount"
+                      onchange="renderProjectFields()"
+                    >
+                      <option value="1">1</option>
+                      <option value="2">2</option>
+                      <option value="3">3</option>
+                      <option value="4">4</option>
+                      <option value="5">5</option>
+                      <option value="6">6</option>
+                      <option value="7">7</option>
+                      <option value="8">8</option>
+                      <option value="9">9</option>
+                      <option value="10">10</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 2. List of Students enrolled -->
+          <div class="card mb-4">
+            <div class="card-header">
+              <h5 class="mb-0">2. List of Enrolled Students</h5>
+            </div>
+            <div class="card-body">
+              <div id="noEnrolledStudents" class="text-center py-4 text-muted">
+                <p>Select a course to view enrolled students</p>
+              </div>
+              <table class="table table-bordered d-none" id="gradeEntryTable">
+                <thead>
+                  <tr>
+                    <th>Student Name</th>
+                    <th>Student ID</th>
+                    <th id="assessmentHeader">Scores</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody id="gradeEntryTableBody"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- 3. Grade Input Panel -->
+          <div class="card mb-4" id="gradeInputPanel">
+            <div class="card-header">
+              <h5 class="mb-0" id="gradeInputTitle">3. Enter Grades</h5>
+            </div>
+            <div class="card-body" id="gradeInputFields">
+              <!-- Dynamic grade fields will be rendered here -->
+            </div>
+          </div>
+
+          <!-- 4. Save Grades Button -->
+          <div class="mb-4">
+            <button class="btn btn-primary btn-lg" onclick="saveGrades()">
+              4. Save Grades
+            </button>
+          </div>
+
+          <!-- 5. Grades Summary Table -->
+          <div class="card">
+            <div class="card-header">
+              <h5 class="mb-0">5. Summary of Grades</h5>
+            </div>
+            <div class="card-body">
+              <table class="table" id="gradesSummaryTable">
+                <thead>
+                  <tr>
+                    <th>Student</th>
+                    <th>Course</th>
+                    <th>Quiz %</th>
+                    <th>Lab %</th>
+                    <th>Project %</th>
+                    <th>Total%</th>
+                    <th>Grade</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div id="gradingSection" class="section d-none">
+          <h4 class="fw-bold mb-4">
+            Grading Scale - Letter Grade by Percentage
+          </h4>
+          <div class="row">
+            <div class="col-md-6">
+              <div class="card">
+                <div class="card-header d-flex justify-content-between">
+                  <h5 class="mb-0">Letter Grade Scale</h5>
+                  <button
+                    class="btn btn-sm btn-primary"
+                    onclick="addGradeScale()"
+                  >
+                    + Add
+                  </button>
+                </div>
+                <div class="card-body">
+                  <table class="table table-sm" id="gradingScaleTable">
+                    <thead>
+                      <tr>
+                        <th>Min%</th>
+                        <th>Max%</th>
+                        <th>Letter</th>
+                        <th></th>
+                      </tr>
+                    </thead>
+                    <tbody></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="card">
+                <div class="card-header"><h5 class="mb-0">Weights (%)</h5></div>
+                <div class="card-body">
+                  <div class="mb-3">
+                    <label>Major Exams</label
+                    ><input
+                      type="number"
+                      class="form-control"
+                      id="weightWritten"
+                      value="40"
+                    />
+                  </div>
+                  <div class="mb-3">
+                    <label>Quiz</label
+                    ><input
+                      type="number"
+                      class="form-control"
+                      id="weightQuiz"
+                      value="20"
+                    />
+                  </div>
+                  <div class="mb-3">
+                    <label>Laboratory</label
+                    ><input
+                      type="number"
+                      class="form-control"
+                      id="weightPT"
+                      value="30"
+                    />
+                  </div>
+                  <div class="mb-3">
+                    <label>Project</label
+                    ><input
+                      type="number"
+                      class="form-control"
+                      id="weightProject"
+                      value="10"
+                    />
+                  </div>
+                  <button class="btn btn-primary w-100" onclick="saveWeights()">
+                    Save Weights
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Combined Assessment & HPS Entry Section -->
+        <div id="assessmentHpsSection" class="section d-none">
+          <h4 class="fw-bold mb-4">Assessment & HPS Entry</h4>
+
+          <!-- Course and Assessment Type Selection -->
+          <div class="card mb-4">
+            <div class="card-body">
+              <div class="row">
+                <div class="col-md-6">
+                  <label class="form-label fw-bold">Select Course</label>
+                  <select
+                    class="form-select"
+                    id="ahpsCourseSelect"
+                    onchange="
+                      renderAssessmentHpsTable();
+                      updateAssessmentTypeOptions();
+                    "
+                  >
+                    <option value="">Select Course</option>
+                  </select>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label fw-bold">Assessment Type</label>
+                  <select
+                    class="form-select"
+                    id="ahpsTypeSelect"
+                    onchange="renderAssessmentHpsTable()"
+                  >
+                    <option value="">Select Type</option>
+                    <option value="written">Written Exam</option>
+                    <option value="quiz">Quiz</option>
+                    <option value="pt">Performance Task</option>
+                    <option value="project">Project</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Assessment & HPS Table -->
+          <div class="card">
+            <div
+              class="card-header d-flex justify-content-between align-items-center"
+            >
+              <h5 class="mb-0">Monthly Assessment Entries</h5>
+              <button
+                class="btn btn-success btn-sm"
+                onclick="saveAssessmentHps()"
+              >
+                <i class="fas fa-save me-1"></i> Save All
+              </button>
+            </div>
+            <div class="card-body">
+              <div id="ahpsNoCourseMsg" class="text-center py-5 text-muted">
+                <p>
+                  <i class="fas fa-arrow-left me-2"></i>Select a course and
+                  assessment type to begin
+                </p>
+              </div>
+              <div id="ahpsTableContainer" class="d-none">
+                <table class="table table-bordered" id="assessmentHpsTable">
+                  <thead class="table-light">
+                    <tr>
+                      <th style="width: 50px">#</th>
+                      <th style="width: 180px">
+                        <div
+                          class="d-flex justify-content-between align-items-center"
+                        >
+                          <span>Month</span>
+                          <div class="btn-group btn-group-sm">
+                            <button
+                              class="btn btn-outline-secondary"
+                              onclick="addMonthColumn()"
+                              title="Add Month"
+                            >
+                              <i class="fas fa-plus"></i>
+                            </button>
+                          </div>
+                        </div>
+                      </th>
+                      <th style="width: 120px">Date</th>
+                      <th>Assessment Title</th>
+                      <th style="width: 120px">HPS</th>
+                      <th style="width: 80px">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="assessmentHpsTableBody"></tbody>
+                </table>
+                <button
+                  class="btn btn-primary mt-3"
+                  onclick="addAssessmentRow()"
+                >
+                  <i class="fas fa-plus me-1"></i> Add Assessment Row
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Trash Section for Deleted Assessments -->
+        <div id="trashSection" class="section d-none">
+          <h4 class="fw-bold mb-4"><i class="fas fa-trash me-2"></i>Trash</h4>
+          <div class="card">
+            <div
+              class="card-header d-flex justify-content-between align-items-center"
+            >
+              <h5 class="mb-0">Deleted Assessments</h5>
+              <button
+                class="btn btn-sm btn-danger"
+                onclick="emptyTrashAssessments()"
+              >
+                <i class="fas fa-trash-alt me-1"></i> Empty Trash
+              </button>
+            </div>
+            <div class="card-body">
+              <div
+                id="deletedAssessmentsEmpty"
+                class="text-center py-5 text-muted"
+              >
+                <p>
+                  <i class="fas fa-trash fa-3x mb-3"></i><br />Trash is empty
+                </p>
+              </div>
+              <div class="table-responsive">
+                <table
+                  class="table table-hover d-none"
+                  id="deletedAssessmentsTable"
+                >
+                  <thead class="table-light">
+                    <tr>
+                      <th>Type</th>
+                      <th>Title</th>
+                      <th>Course</th>
+                      <th>Date</th>
+                      <th>Deleted</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="deletedAssessmentsTableBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Group Management Section -->
+        <div id="groupsSection" class="section d-none">
+          <h4 class="fw-bold mb-4">Group Management</h4>
+          <div class="row">
+            <div class="col-md-5">
+              <div class="card">
+                <div class="card-header">
+                  <h5 class="mb-0">Create Group Names for a Course</h5>
+                </div>
+                <div class="card-body">
+                  <form id="groupForm">
+                    <div class="mb-3">
+                      <label class="form-label">Course</label>
+                      <select class="form-select" id="groupCourse" required>
+                        <option value="">Select Course</option>
+                      </select>
+                    </div>
+                    <div class="mb-3">
+                      <label class="form-label">Group Type</label>
+                      <select class="form-select" id="groupType" required>
+                        <option value="Lecture">Lecture</option>
+                        <option value="Laboratory">Laboratory</option>
+                      </select>
+                    </div>
+                    <div class="mb-3">
+                      <label class="form-label">Number of Groups</label>
+                      <select
+                        class="form-select"
+                        id="groupCount"
+                        onchange="renderGroupNameInputs()"
+                      >
+                        <option value="2">2 Groups</option>
+                        <option value="3">3 Groups</option>
+                        <option value="4">4 Groups</option>
+                        <option value="5">5 Groups</option>
+                        <option value="6">6 Groups</option>
+                        <option value="7">7 Groups</option>
+                        <option value="8">8 Groups</option>
+                      </select>
+                    </div>
+                    <div class="mb-3" id="groupNamesContainer">
+                      <!-- Dynamic group name inputs will be rendered here -->
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">
+                      Create Groups
+                    </button>
+                  </form>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-7">
+              <div class="card">
+                <div
+                  class="card-header d-flex justify-content-between align-items-center"
+                >
+                  <h5 class="mb-0">Existing Group Names</h5>
+                  <button
+                    class="btn btn-sm btn-danger"
+                    onclick="clearAllGroups()"
+                  >
+                    <i class="fas fa-trash me-1"></i> Clear All
+                  </button>
+                </div>
+                <div class="card-body">
+                  <table class="table table-sm" id="groupsTable">
+                    <thead>
+                      <tr>
+                        <th>Group Name</th>
+                        <th>Course</th>
+                        <th>Type</th>
+                        <th></th>
+                      </tr>
+                    </thead>
+                    <tbody></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal fade" id="courseModal">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Add Course</h5>
+            <button class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <form id="courseForm">
+              <input type="hidden" id="courseId" />
+              <input
+                type="text"
+                class="form-control mb-3"
+                id="courseCode"
+                placeholder="Course Code"
+                required
+              />
+              <input
+                type="text"
+                class="form-control mb-3"
+                id="courseTitle"
+                placeholder="Course Title"
+                required
+              />
+              <input
+                type="text"
+                class="form-control mb-3"
+                id="courseSchedule"
+                placeholder="Schedule (e.g., Mon/Wed 9:00-12:00)"
+                required
+              />
+              <input
+                type="text"
+                class="form-control mb-3"
+                id="courseRoom"
+                placeholder="Room Number"
+                required
+              />
+              <input
+                type="text"
+                class="form-control mb-3"
+                id="courseInstructor"
+                placeholder="Instructor"
+                required
+              />
+              <div class="form-check">
+                <input
+                  type="checkbox"
+                  class="form-check-input"
+                  id="courseHasLab"
+                />
+                <label class="form-check-label" for="courseHasLab">
+                  Has Laboratory (enables Performance Task)
+                </label>
+              </div>
+              <button class="btn btn-primary w-100 mt-3">Save</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal fade" id="studentModal">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Add Student</h5>
+            <button class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <form id="studentForm">
+              <input type="hidden" id="studentDbId" />
+              <div class="mb-3">
+                <label class="form-label">Program</label>
+                <select
+                  class="form-select"
+                  id="studentProgram"
+                  onchange="generateStudentId()"
+                  required
+                >
+                  <option value="">Select Program</option>
+                  <option value="IT">BSIT - Information Technology</option>
+                  <option value="CS">BSCS - Computer Science</option>
+                  <option value="IS">BSIS - Information Systems</option>
+                  <option value="CE">BSCE - Computer Engineering</option>
+                  <option value="EE">BSEE - Electrical Engineering</option>
+                  <option value="ME">BSME - Mechanical Engineering</option>
+                  <option value="BA">BSA - Accountancy</option>
+                  <option value="MA">BSMA - Management Accounting</option>
+                  <option value="HM">BSHM - Hospitality Management</option>
+                  <option value="TM">BSTM - Tourism Management</option>
+                </select>
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Student ID</label>
+                <div class="input-group">
+                  <input
+                    type="text"
+                    class="form-control"
+                    id="studentId"
+                    placeholder="Auto-generated"
+                    required
+                    readonly
+                  />
+                  <button
+                    type="button"
+                    class="btn btn-outline-secondary"
+                    onclick="generateStudentId()"
+                    title="Generate ID"
+                  >
+                    <i class="fas fa-sync-alt"></i>
+                  </button>
+                </div>
+                <small class="text-muted"
+                  >Format: Program Code + 4-digit random number (e.g.,
+                  IT5839)</small
+                >
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Full Name</label>
+                <input
+                  type="text"
+                  class="form-control mb-2"
+                  id="studentName"
+                  placeholder="Full Name"
+                  oninput="generatePIN()"
+                  required
+                />
+              </div>
+              <div class="mb-3">
+                <label class="form-label">PIN (Auto-generated)</label>
+                <div class="input-group">
+                  <input
+                    type="text"
+                    class="form-control"
+                    id="studentPin"
+                    placeholder="Auto-generated from name"
+                    readonly
+                  />
+                  <button
+                    type="button"
+                    class="btn btn-outline-secondary"
+                    onclick="generatePIN()"
+                    title="Generate PIN"
+                  >
+                    <i class="fas fa-sync-alt"></i>
+                  </button>
+                </div>
+                <small class="text-muted"
+                  >Format: First letter of Lastname + First letter of Firstname
+                  + 3 random numbers (e.g., John Brown -> BJ100)</small
+                >
+              </div>
+              <input
+                type="email"
+                class="form-control mb-3"
+                id="studentEmail"
+                placeholder="Email"
+              />
+              <select class="form-select mb-3" id="studentYear">
+                <option>1st Year</option>
+                <option>2nd Year</option>
+                <option>3rd Year</option>
+                <option>4th Year</option>
+              </select>
+              <button type="submit" class="btn btn-primary w-100">Save</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+      // Disable right-click context menu
+      document.addEventListener(
+        "contextmenu",
+        function (e) {
+          e.preventDefault();
+        },
+        false,
+      );
+
+      // Disable keyboard shortcuts for developer tools
+      document.addEventListener(
+        "keydown",
+        function (e) {
+          // F12
+          if (e.key === "F12") {
+            e.preventDefault();
+          }
+          // Ctrl+Shift+I (Developer Tools)
+          if (e.ctrlKey && e.shiftKey && e.key === "I") {
+            e.preventDefault();
+          }
+          // Ctrl+Shift+J (Console)
+          if (e.ctrlKey && e.shiftKey && e.key === "J") {
+            e.preventDefault();
+          }
+          // Ctrl+U (View Source)
+          if (e.ctrlKey && e.key === "u") {
+            e.preventDefault();
+          }
+          // Ctrl+Shift+C (Inspect Element)
+          if (e.ctrlKey && e.shiftKey && e.key === "C") {
+            e.preventDefault();
+          }
+          // Ctrl+S (Save)
+          if (e.ctrlKey && e.key === "s") {
+            e.preventDefault();
+          }
+          // Ctrl+P (Print)
+          if (e.ctrlKey && e.key === "p") {
+            e.preventDefault();
+          }
+        },
+        false,
+      );
+
+      // Additional protection: Clear console on load
+      console.clear();
+
+      // Sidebar toggle function for mobile
+      function toggleSidebar() {
+        var sidebar = document.getElementById("sidebar");
+        var mainContent = document.getElementById("mainContent");
+
+        // Check if overlay already exists
+        var existingOverlay = document.querySelector(".sidebar-overlay");
+
+        if (sidebar.classList.contains("show")) {
+          sidebar.classList.remove("show");
+          if (existingOverlay) {
+            existingOverlay.remove();
+          }
+        } else {
+          sidebar.classList.add("show");
+
+          // Create overlay if it doesn't exist
+          if (!existingOverlay) {
+            var overlay = document.createElement("div");
+            overlay.className = "sidebar-overlay show";
+            overlay.onclick = function () {
+              sidebar.classList.remove("show");
+              this.remove();
+            };
+            document.body.appendChild(overlay);
+          } else {
+            existingOverlay.classList.add("show");
+          }
+        }
+      }
+
+      // Close sidebar when clicking a nav link on mobile
+      function closeSidebarOnMobile() {
+        if (window.innerWidth < 768) {
+          var sidebar = document.getElementById("sidebar");
+          var overlay = document.querySelector(".sidebar-overlay");
+          sidebar.classList.remove("show");
+          if (overlay) {
+            overlay.remove();
+          }
+        }
+      }
+
+      // Add event listeners to nav links to close sidebar on mobile
+      document.addEventListener("DOMContentLoaded", function () {
+        var navLinks = document.querySelectorAll(".nav-link");
+        navLinks.forEach(function (link) {
+          link.addEventListener("click", closeSidebarOnMobile);
+        });
+      });
+
+      // Handle window resize
+      window.addEventListener("resize", function () {
+        if (window.innerWidth >= 768) {
+          var sidebar = document.getElementById("sidebar");
+          var overlay = document.querySelector(".sidebar-overlay");
+          sidebar.classList.remove("show");
+          if (overlay) {
+            overlay.remove();
+          }
+        }
+      });
+
+      const DB_KEY = "academic_grade_system_v1";
+      let store = JSON.parse(localStorage.getItem(DB_KEY)) || {
+        courses: [],
+        students: [],
+        enrollments: [],
+        grades: {},
+        assessments: [],
+        deletedAssessments: [], // Trash for deleted assessments
+        groups: [],
+        hps: { quiz: 50, pt: 100, project: 100, exam: 100 },
+        weights: { written: 40, quiz: 20, pt: 30, project: 10 },
+        gradingScale: [
+          { min: 95, max: 100, label: "A" },
+          { min: 90, max: 94, label: "A-" },
+          { min: 85, max: 89, label: "B+" },
+          { min: 80, max: 84, label: "B" },
+          { min: 75, max: 79, label: "B-" },
+          { min: 70, max: 74, label: "C+" },
+          { min: 65, max: 69, label: "C" },
+          { min: 60, max: 64, label: "C-" },
+          { min: 55, max: 59, label: "D" },
+          { min: 0, max: 54, label: "F" },
+        ],
+      };
+
+      // Ensure deletedAssessments array exists (for backwards compatibility)
+      if (!store.deletedAssessments) {
+        store.deletedAssessments = [];
+        localStorage.setItem(DB_KEY, JSON.stringify(store));
+      }
+
+      // Ensure assessments array exists (for backwards compatibility)
+      if (!store.assessments) {
+        store.assessments = [];
+        localStorage.setItem(DB_KEY, JSON.stringify(store));
+      }
+
+      // ============================================
+      // Helper Functions for Assessment & HPS Integration
+      // ============================================
+
+      // Get assessment data for a specific course and type from Assessment & HPS section
+      function getAssessmentDataForCourse(courseId, type) {
+        if (!courseId || !type) {
+          return { assessments: [], hps: {} };
+        }
+
+        var courseKey = "course_" + courseId;
+
+        // Get assessments from store.assessments
+        var assessments = store.assessments.filter(function (a) {
+          return a.courseId === courseId && a.type === type;
+        });
+
+        // Get HPS from store.hps.perAssessment
+        var hpsData = {};
+        if (
+          store.hps &&
+          store.hps.perAssessment &&
+          store.hps.perAssessment[courseKey]
+        ) {
+          hpsData = store.hps.perAssessment[courseKey][type] || {};
+        }
+
+        // Map assessments to include their HPS values
+        var assessmentsWithHps = assessments.map(function (a) {
+          var hpsKey = a.subType || "a" + a.id;
+          return {
+            id: a.id,
+            subType: a.subType,
+            title: a.title,
+            month: a.month,
+            date: a.date,
+            hps: hpsData[hpsKey] || (type === "quiz" ? 50 : 100),
+          };
+        });
+
+        return { assessments: assessmentsWithHps, hps: hpsData };
+      }
+
+      // Get HPS value for a specific assessment
+      function getHpsForAssessment(courseId, type, subType) {
+        if (!courseId) return type === "quiz" ? 50 : 100;
+
+        var courseKey = "course_" + courseId;
+        if (
+          store.hps &&
+          store.hps.perAssessment &&
+          store.hps.perAssessment[courseKey]
+        ) {
+          var typeHps = store.hps.perAssessment[courseKey][type] || {};
+          return typeHps[subType] || (type === "quiz" ? 50 : 100);
+        }
+        return type === "quiz" ? 50 : 100;
+      }
+
+      // Get assessment count based on type
+      function getAssessmentCount(courseId, type) {
+        var data = getAssessmentDataForCourse(courseId, type);
+        if (data.assessments && data.assessments.length > 0) {
+          return data.assessments.length;
+        }
+        // Default counts based on type
+        if (type === "quiz") return 4;
+        if (type === "pt") return 4;
+        if (type === "project") return 2;
+        if (type === "written") return 4;
+        return 4;
+      }
+
+      document.addEventListener("DOMContentLoaded", function () {
+        // Show main content directly (authentication handled by admin_login.html)
+        document.getElementById("mainContent").style.display = "flex";
+
+        // Use event delegation for navigation links (more reliable)
+        document.addEventListener("click", function (e) {
+          // Check if clicked element is a nav-link
+          const navLink = e.target.closest(".nav-link");
+          if (navLink && navLink.dataset.section) {
+            e.preventDefault();
+            showSection(navLink.dataset.section);
+          }
+        });
+
+        // Wait for SyncManager to be ready before initializing the app
+        // This ensures firebase-config.js has finished loading
+        if (window.waitForSyncManager) {
+          window
+            .waitForSyncManager()
+            .then(function () {
+              console.log("SyncManager ready, initializing app...");
+              initApp();
+            })
+            .catch(function (err) {
+              console.error("Error waiting for SyncManager:", err);
+              initApp(); // Still try to initialize even if there's an error
+            });
+        } else {
+          // Fallback if waitForSyncManager is not available
+          console.log(
+            "waitForSyncManager not found, initializing app directly...",
+          );
+          initApp();
+        }
+
+        document
+          .getElementById("courseForm")
+          .addEventListener("submit", function (e) {
+            e.preventDefault();
+            saveCourse();
+          });
+        document
+          .getElementById("studentForm")
+          .addEventListener("submit", function (e) {
+            e.preventDefault();
+            saveStudent();
+          });
+        document
+          .getElementById("assessmentForm")
+          .addEventListener("submit", function (e) {
+            e.preventDefault();
+            saveAssessment();
+          });
+        document
+          .getElementById("groupForm")
+          .addEventListener("submit", function (e) {
+            e.preventDefault();
+            saveGroup();
+          });
+      });
+
+      function initApp() {
+        // Use SyncManager for data loading - works offline
+        // SyncManager will use localStorage first, optionally sync with Firebase if enabled
+        SyncManager.loadData()
+          .then(function (storeData) {
+            store = storeData;
+            console.log("Data loaded, students count:", store.students.length);
+
+            // Continue with app initialization
+            renderDashboard();
+            renderCourses();
+            renderStudents();
+            renderEnrollment();
+            renderGradingScale();
+
+            // Populate dashboard grade summary
+            populateDashboardGradeFilter();
+            renderDashboardGradeSummary();
+
+            // Initialize default HPS values in store if not present
+            if (!store.hps) {
+              store.hps = { quiz: 50, pt: 100, project: 100, exam: 100 };
+            }
+            if (!store.hps.perAssessment) {
+              store.hps.perAssessment = {};
+            }
+            save();
+          })
+          .catch(function (error) {
+            console.error("Error loading data:", error);
+            // Use default store on error
+            store = SyncManager.ensureDefaultStructure(null);
+            save();
+          });
+      }
+
+      function showSection(id) {
+        // Check if trying to access grades section without Assessment & HPS
+        if (id === "grades") {
+          var hasAssessmentHps = checkAssessmentHpsConfigured();
+          if (!hasAssessmentHps) {
+            alert(
+              "Please configure Assessment & HPS first before entering grades!\n\nGo to: Assessment & HPS section to set up assessments and their Highest Possible Scores (HPS).",
+            );
+            // Still show the section but with a warning
+          }
+        }
+
+        var sections = document.querySelectorAll(".section");
+        for (var i = 0; i < sections.length; i++) {
+          sections[i].classList.add("d-none");
+          sections[i].style.display = "none";
+        }
+        document
+          .querySelectorAll(".nav-link")
+          .forEach((l) => l.classList.remove("active"));
+        var targetSection = document.getElementById(id + "Section");
+        if (targetSection) {
+          targetSection.classList.remove("d-none");
+          targetSection.style.display = "block";
+        }
+        var targetNav = document.querySelector('[data-section="' + id + '"]');
+        if (targetNav) {
+          targetNav.classList.add("active");
+        }
+        if (id === "grades") {
+          populateGradeSelects();
+          updateGradesSummary();
+          // Check Assessment & HPS status and show warning if needed
+          checkGradeEntryAvailability();
+        }
+        // Initialize weight values when grading section is shown
+        if (id === "grading") {
+          document.getElementById("weightWritten").value =
+            store.weights.written || 40;
+          document.getElementById("weightQuiz").value =
+            store.weights.quiz || 20;
+          document.getElementById("weightPT").value = store.weights.pt || 30;
+          document.getElementById("weightProject").value =
+            store.weights.project || 10;
+        }
+        // Refresh enrollment dropdowns when navigating to enrollment section
+        if (id === "enrollment") {
+          renderEnrollment(true);
+          renderStudentChecklist();
+        }
+        // Refresh assessment section when navigating to assessment
+        if (id === "assessment") {
+          renderAssessment();
+          populateAssessmentCourseSelect();
+        }
+        // Refresh assessmentHps section when navigating to assessmentHps
+        if (id === "assessmentHps") {
+          populateAssessmentHpsCourseSelect();
+        }
+        // Refresh groups section when navigating to groups
+        if (id === "groups") {
+          renderGroups();
+          populateGroupCourseSelect();
+        }
+        // Refresh trash section when navigating to trash
+        if (id === "trash") {
+          renderDeletedAssessments();
+        }
+      }
+
+      // Check if Assessment & HPS is configured for any course
+      function checkAssessmentHpsConfigured() {
+        if (!store.hps || !store.hps.perAssessment) {
+          return false;
+        }
+
+        var courseKeys = Object.keys(store.hps.perAssessment);
+        if (courseKeys.length === 0) {
+          return false;
+        }
+
+        // Check if at least one course has assessments configured
+        for (var i = 0; i < courseKeys.length; i++) {
+          var courseHps = store.hps.perAssessment[courseKeys[i]];
+          if (
+            courseHps &&
+            (courseHps.written ||
+              courseHps.quiz ||
+              courseHps.pt ||
+              courseHps.project)
+          ) {
+            return true;
+          }
+        }
+
+        return false;
+      }
+
+      // Check if Assessment & HPS is configured for a specific course
+      function checkAssessmentHpsForCourse(courseId) {
+        if (!courseId) return false;
+
+        var courseKey = "course_" + courseId;
+        if (
+          !store.hps ||
+          !store.hps.perAssessment ||
+          !store.hps.perAssessment[courseKey]
+        ) {
+          return false;
+        }
+
+        var courseHps = store.hps.perAssessment[courseKey];
+        return (
+          courseHps.written ||
+          courseHps.quiz ||
+          courseHps.pt ||
+          courseHps.project
+        );
+      }
+
+      // Check grade entry availability and show warning
+      function checkGradeEntryAvailability() {
+        var courseId = parseInt(
+          document.getElementById("gradeCourseSelect")?.value,
+        );
+        var hasAssessmentHps = courseId
+          ? checkAssessmentHpsForCourse(courseId)
+          : checkAssessmentHpsConfigured();
+
+        var warningDiv = document.getElementById("gradeEntryWarning");
+        if (!warningDiv) {
+          // Create warning div if it doesn't exist
+          var gradesSection = document.getElementById("gradesSection");
+          var warningHtml =
+            '<div id="gradeEntryWarning" class="alert alert-warning mb-4 d-none">' +
+            '<i class="fas fa-exclamation-triangle me-2"></i>' +
+            "<strong>Assessment & HPS Not Configured!</strong> " +
+            'Please go to <a href="#" onclick="showSection(\'assessmentHps\')">Assessment & HPS</a> section to configure assessments and their Highest Possible Scores (HPS) before entering grades.' +
+            "</div>";
+          gradesSection.insertAdjacentHTML("afterbegin", warningHtml);
+          warningDiv = document.getElementById("gradeEntryWarning");
+        }
+
+        if (!hasAssessmentHps) {
+          warningDiv.classList.remove("d-none");
+        } else {
+          warningDiv.classList.add("d-none");
+        }
+      }
+
+      function renderDashboard() {
+        document.getElementById("totalCourses").textContent =
+          store.courses.length;
+        document.getElementById("totalStudents").textContent =
+          store.students.length;
+        document.getElementById("totalEnrollments").textContent =
+          store.enrollments.length;
+        document.getElementById("totalSections").textContent =
+          store.courses.length;
+      }
+
+      function renderCourses() {
+        var tbody = document.querySelector("#coursesTable tbody");
+        tbody.innerHTML = store.courses
+          .map(function (c, i) {
+            return (
+              "<tr><td><strong>" +
+              c.code +
+              "</strong></td><td>" +
+              c.title +
+              "</td><td>" +
+              c.schedule +
+              "</td><td>" +
+              c.room +
+              "</td><td>" +
+              c.instructor +
+              "</td><td>" +
+              (c.hasLab
+                ? '<span class="badge bg-success">Lab</span>'
+                : '<span class="badge bg-secondary">No Lab</span>') +
+              '</td><td><button class="btn btn-sm btn-primary me-1" onclick="editCourse(' +
+              i +
+              ')"><i class="fas fa-edit"></i></button><button class="btn btn-sm btn-danger" onclick="deleteCourse(' +
+              i +
+              ')"><i class="fas fa-trash"></i></button></td></tr>'
+            );
+          })
+          .join("");
+      }
+
+      function saveCourse() {
+        var id = document.getElementById("courseId").value;
+        var course = {
+          id: id ? parseInt(id) : Date.now(),
+          code: document.getElementById("courseCode").value,
+          title: document.getElementById("courseTitle").value,
+          schedule: document.getElementById("courseSchedule").value,
+          room: document.getElementById("courseRoom").value,
+          instructor: document.getElementById("courseInstructor").value,
+          hasLab: document.getElementById("courseHasLab").checked,
+        };
+        if (id) {
+          store.courses[
+            store.courses.findIndex(function (c) {
+              return c.id === parseInt(id);
+            })
+          ] = course;
+        } else {
+          store.courses.push(course);
+        }
+        save();
+        renderCourses();
+        var modalEl = document.getElementById("courseModal");
+        var modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+        modal.hide();
+        document.getElementById("courseForm").reset();
+        document.getElementById("courseId").value = "";
+      }
+
+      function editCourse(i) {
+        var c = store.courses[i];
+        document.getElementById("courseId").value = c.id;
+        document.getElementById("courseCode").value = c.code;
+        document.getElementById("courseTitle").value = c.title;
+        document.getElementById("courseSchedule").value = c.schedule;
+        document.getElementById("courseRoom").value = c.room;
+        document.getElementById("courseInstructor").value = c.instructor;
+        document.getElementById("courseHasLab").checked = c.hasLab || false;
+        var modalEl = document.getElementById("courseModal");
+        var modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+        modal.show();
+      }
+
+      function deleteCourse(i) {
+        if (confirm("Delete course?")) {
+          store.courses.splice(i, 1);
+          save();
+          renderCourses();
+        }
+      }
+
+      function renderStudents() {
+        var tbody = document.querySelector("#studentsTable tbody");
+
+        // Get filter values
+        var programFilter = document.getElementById(
+          "studentFilterProgram",
+        ).value;
+        var displayLimit = document.getElementById("studentDisplayLimit").value;
+
+        // Filter students by program if selected
+        var filteredStudents = programFilter
+          ? store.students.filter(function (s) {
+              return s.program === programFilter;
+            })
+          : store.students;
+
+        // Sort students alphabetically by Lastname, Firstname
+        var sortedStudents = filteredStudents.slice().sort(function (a, b) {
+          var nameA = a.name || "";
+          var nameB = b.name || "";
+
+          var partsA = nameA.trim().split(" ");
+          var partsB = nameB.trim().split(" ");
+
+          var lastnameA =
+            partsA.length > 1 ? partsA[partsA.length - 1] : partsA[0];
+          var firstnameA = partsA.length > 1 ? partsA[0] : "";
+
+          var lastnameB =
+            partsB.length > 1 ? partsB[partsB.length - 1] : partsB[0];
+          var firstnameB = partsB.length > 1 ? partsB[0] : "";
+
+          var lastCompare = lastnameA.localeCompare(lastnameB);
+          if (lastCompare !== 0) return lastCompare;
+          return firstnameA.localeCompare(firstnameB);
+        });
+
+        // Apply display limit
+        if (displayLimit !== "all") {
+          var limit = parseInt(displayLimit) || 5;
+          sortedStudents = sortedStudents.slice(0, limit);
+        }
+
+        tbody.innerHTML = sortedStudents
+          .map(function (s, i) {
+            // Convert name to "Lastname, Firstname" format
+            var nameParts = (s.name || "").trim().split(" ");
+            var displayName = s.name;
+            if (nameParts.length > 1) {
+              var lastname = nameParts[nameParts.length - 1];
+              var firstname = nameParts.slice(0, -1).join(" ");
+              displayName = lastname + ", " + firstname;
+            }
+
+            return (
+              "<tr><td><strong>" +
+              s.idNum +
+              "</strong></td><td>" +
+              (s.program || "N/A") +
+              "</td><td>" +
+              displayName +
+              "</td><td>" +
+              (s.pin || "N/A") +
+              "</td><td>" +
+              s.email +
+              "</td><td>" +
+              s.year +
+              '</td><td><button class="btn btn-sm btn-primary me-1" onclick="editStudent(' +
+              i +
+              ')"><i class="fas fa-edit"></i></button><button class="btn btn-sm btn-danger" onclick="deleteStudent(' +
+              i +
+              ')"><i class="fas fa-trash"></i></button></td></tr>'
+            );
+          })
+          .join("");
+      }
+
+      function saveStudent() {
+        var id = document.getElementById("studentDbId").value;
+        var student = {
+          id: id ? parseInt(id) : Date.now(),
+          idNum: document.getElementById("studentId").value,
+          program: document.getElementById("studentProgram").value,
+          name: document.getElementById("studentName").value,
+          pin: document.getElementById("studentPin").value,
+          email: document.getElementById("studentEmail").value,
+          year: document.getElementById("studentYear").value,
+        };
+        if (id) {
+          store.students[
+            store.students.findIndex(function (s) {
+              return s.id === parseInt(id);
+            })
+          ] = student;
+        } else {
+          store.students.push(student);
+        }
+        save();
+        renderStudents();
+        renderEnrollment(); // Refresh enrollment dropdown
+        var modalEl = document.getElementById("studentModal");
+        var modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+        modal.hide();
+        document.getElementById("studentForm").reset();
+        document.getElementById("studentDbId").value = "";
+      }
+
+      function editStudent(i) {
+        var s = store.students[i];
+        document.getElementById("studentDbId").value = s.id;
+        document.getElementById("studentId").value = s.idNum;
+        document.getElementById("studentProgram").value = s.program || "";
+        document.getElementById("studentName").value = s.name;
+        document.getElementById("studentPin").value = s.pin || "";
+        document.getElementById("studentEmail").value = s.email;
+        document.getElementById("studentYear").value = s.year;
+        var modalEl = document.getElementById("studentModal");
+        var modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+        modal.show();
+      }
+
+      // Reset student form when modal is opened for new student
+      document
+        .getElementById("studentModal")
+        .addEventListener("show.bs.modal", function (event) {
+          if (!document.getElementById("studentDbId").value) {
+            document.getElementById("studentForm").reset();
+            document.getElementById("studentId").value = "";
+            document.getElementById("studentPin").value = "";
+          }
+        });
+
+      function deleteStudent(i) {
+        if (confirm("Delete student?")) {
+          store.students.splice(i, 1);
+          save();
+          renderStudents();
+          renderEnrollment(); // Refresh enrollment dropdown
+        }
+      }
+
+      // Auto-generate Student ID: Program + Random 4-digit number
+      function generateStudentId() {
+        var program = document.getElementById("studentProgram").value;
+        if (!program) {
+          document.getElementById("studentId").value = "";
+          return;
+        }
+
+        // Generate random 4-digit number (1000-9999)
+        var randomNum = Math.floor(Math.random() * 9000) + 1000;
+
+        // Format: Program + 4-digit random number (e.g., IT5839)
+        var newId = program + String(randomNum);
+        document.getElementById("studentId").value = newId;
+      }
+
+      // Auto-generate Student PIN: First letter of Lastname + First letter of Firstname + 3 numbers
+      // Example: John Brown -> BJ100
+      function generatePIN() {
+        var name = document.getElementById("studentName").value;
+        if (!name) {
+          document.getElementById("studentPin").value = "";
+          return;
+        }
+
+        var parts = name.trim().split(" ");
+        if (parts.length < 2) {
+          // If only one name, use first letter + random 3 numbers
+          var firstLetter = name.charAt(0).toUpperCase();
+          var pin = firstLetter + String(Math.floor(Math.random() * 900) + 100);
+          document.getElementById("studentPin").value = pin;
+          return;
+        }
+
+        // Firstname is first part, Lastname is last part
+        var firstname = parts[0];
+        var lastname = parts[parts.length - 1];
+
+        // Get first letter of lastname + first letter of firstname
+        var firstLetterLast = lastname.charAt(0).toUpperCase();
+        var firstLetterFirst = firstname.charAt(0).toUpperCase();
+
+        // Get existing PINs with similar pattern for this student
+        var studentDbId = document.getElementById("studentDbId").value;
+        var existingPins = store.students
+          .filter(function (s) {
+            return (
+              s.pin && s.id !== (studentDbId ? parseInt(studentDbId) : null)
+            );
+          })
+          .map(function (s) {
+            return s.pin;
+          });
+
+        // Generate random 3-digit number (100-999)
+        var randomNum = Math.floor(Math.random() * 900) + 100;
+        var newPin = firstLetterLast + firstLetterFirst + String(randomNum);
+
+        document.getElementById("studentPin").value = newPin;
+      }
+
+      function renderEnrollment(preserveFilter) {
+        var courseSelect = document.getElementById("enrollCourse");
+        var filterCourseSelect = document.getElementById("filterCourseSelect");
+
+        // Populate course select for enrollment form
+        courseSelect.innerHTML =
+          '<option value="">Select Course</option>' +
+          store.courses
+            .map(function (c) {
+              return (
+                '<option value="' +
+                c.id +
+                '">' +
+                c.code +
+                " - " +
+                c.title +
+                "</option>"
+              );
+            })
+            .join("");
+
+        // Store current filter value before repopulating
+        var currentFilterValue = filterCourseSelect.value;
+
+        // Populate filter dropdown
+        var filterOptions = '<option value="">All Courses</option>';
+        store.courses.forEach(function (c) {
+          filterOptions +=
+            '<option value="' +
+            c.id +
+            '">' +
+            c.code +
+            " - " +
+            c.title +
+            "</option>";
+        });
+        filterCourseSelect.innerHTML = filterOptions;
+
+        // Restore selected filter value
+        if (preserveFilter && currentFilterValue) {
+          filterCourseSelect.value = currentFilterValue;
+        }
+
+        // Get selected filter course
+        var filterCourseId = filterCourseSelect.value
+          ? parseInt(filterCourseSelect.value)
+          : null;
+
+        // Filter enrollments based on selected course
+        var filteredEnrollments = filterCourseId
+          ? store.enrollments.filter(function (e) {
+              return e.courseId === filterCourseId;
+            })
+          : store.enrollments;
+
+        // Get search query
+        var searchQuery =
+          document.getElementById("searchEnrollment")?.value?.toLowerCase() ||
+          "";
+
+        // Filter by search query if provided
+        if (searchQuery) {
+          filteredEnrollments = filteredEnrollments.filter(function (e) {
+            var student = store.students.find(function (s) {
+              return s.id === e.studentId;
+            });
+            return student && student.name.toLowerCase().includes(searchQuery);
+          });
+        }
+
+        // Track unique enrollments to avoid duplicates
+        var seenEnrollments = {};
+        var uniqueEnrollments = filteredEnrollments.filter(function (e) {
+          var key = e.studentId + "-" + e.courseId;
+          if (seenEnrollments[key]) return false;
+          seenEnrollments[key] = true;
+          return true;
+        });
+
+        // Sort by student name (Lastname, Firstname)
+        uniqueEnrollments.sort(function (a, b) {
+          var studentA = store.students.find(function (s) {
+            return s.id === a.studentId;
+          });
+          var studentB = store.students.find(function (s) {
+            return s.id === b.studentId;
+          });
+          if (!studentA || !studentB) return 0;
+
+          var nameA = studentA.name || "";
+          var nameB = studentB.name || "";
+
+          // Parse name into parts (assuming "Firstname Lastname" or "Firstname Middlename Lastname")
+          var partsA = nameA.trim().split(" ");
+          var partsB = nameB.trim().split(" ");
+
+          var lastnameA =
+            partsA.length > 1 ? partsA[partsA.length - 1] : partsA[0];
+          var firstnameA = partsA.length > 1 ? partsA[0] : "";
+
+          var lastnameB =
+            partsB.length > 1 ? partsB[partsB.length - 1] : partsB[0];
+          var firstnameB = partsB.length > 1 ? partsB[0] : "";
+
+          // Compare last names first, then first names
+          var lastCompare = lastnameA.localeCompare(lastnameB);
+          if (lastCompare !== 0) return lastCompare;
+          return firstnameA.localeCompare(firstnameB);
+        });
+
+        // Helper function to convert name to "Lastname, Firstname" format
+        function formatName(name) {
+          if (!name) return "";
+          var parts = name.trim().split(" ");
+          if (parts.length > 1) {
+            var lastname = parts[parts.length - 1];
+            var firstname = parts.slice(0, -1).join(" ");
+            return lastname + ", " + firstname;
+          }
+          return name;
+        }
+
+        var tbody = document.querySelector("#enrollmentsTable tbody");
+        tbody.innerHTML = uniqueEnrollments
+          .map(function (e, i) {
+            var student = store.students.find(function (s) {
+              return s.id === e.studentId;
+            });
+            var course = store.courses.find(function (c) {
+              return c.id === e.courseId;
+            });
+
+            // Format student name as "Lastname, Firstname"
+            var displayName = student ? formatName(student.name) : "N/A";
+            // Find original index in store.enrollments for deletion
+            var originalIndex = store.enrollments.findIndex(function (orig) {
+              return (
+                orig.studentId === e.studentId && orig.courseId === e.courseId
+              );
+            });
+            return (
+              "<tr><td>" +
+              (student ? displayName : "N/A") +
+              "</td><td>" +
+              (course ? course.code : "N/A") +
+              "</td><td>" +
+              (course ? course.schedule : "N/A") +
+              "</td><td>" +
+              (e.year ? e.year : "") +
+              " " +
+              (e.semester ? e.semester : "") +
+              '</td><td><button class="btn btn-sm btn-danger" onclick="deleteEnrollment(' +
+              originalIndex +
+              ')">x</button></td></tr>'
+            );
+          })
+          .join("");
+      }
+
+      // Render student checklist for bulk enrollment
+      function renderStudentChecklist() {
+        var courseId = parseInt(document.getElementById("enrollCourse").value);
+        var checklistContainer = document.getElementById("studentChecklist");
+        var countDisplay = document.getElementById("studentCountDisplay");
+
+        if (!courseId) {
+          checklistContainer.innerHTML =
+            '<p class="text-muted text-center py-3">Select a course to see students</p>';
+          countDisplay.textContent = "";
+          return;
+        }
+
+        // Get already enrolled student IDs for this course
+        var enrolledStudentIds = store.enrollments
+          .filter(function (e) {
+            return e.courseId === courseId;
+          })
+          .map(function (e) {
+            return e.studentId;
+          });
+
+        // Sort students by name
+        var sortedStudents = store.students.slice().sort(function (a, b) {
+          return (a.name || "").localeCompare(b.name || "");
+        });
+
+        if (sortedStudents.length === 0) {
+          checklistContainer.innerHTML =
+            '<p class="text-muted text-center py-3">No students available</p>';
+          countDisplay.textContent = "0 students";
+          return;
+        }
+
+        var html = sortedStudents
+          .map(function (s) {
+            var isEnrolled = enrolledStudentIds.includes(s.id);
+            return (
+              '<div class="form-check mb-2">' +
+              '<input class="form-check-input student-checkbox" type="checkbox" ' +
+              'value="' +
+              s.id +
+              '" ' +
+              (isEnrolled ? "checked disabled" : "") +
+              ' id="student_' +
+              s.id +
+              '" />' +
+              '<label class="form-check-label ms-2' +
+              (isEnrolled ? " text-success" : "") +
+              '" for="student_' +
+              s.id +
+              '">' +
+              s.name +
+              (isEnrolled ? " (Enrolled)" : "") +
+              " - " +
+              (s.program || "N/A") +
+              "</label></div>"
+            );
+          })
+          .join("");
+
+        checklistContainer.innerHTML = html;
+
+        // Update count display
+        var totalCount = sortedStudents.length;
+        var enrolledCount = enrolledStudentIds.length;
+        var availableCount = totalCount - enrolledCount;
+        countDisplay.textContent =
+          availableCount +
+          " of " +
+          totalCount +
+          " students available to enroll";
+      }
+
+      // Select all students in checklist
+      function selectAllStudents() {
+        var checkboxes = document.querySelectorAll(
+          ".student-checkbox:not(:disabled)",
+        );
+        checkboxes.forEach(function (cb) {
+          cb.checked = true;
+        });
+      }
+
+      // Deselect all students in checklist
+      function deselectAllStudents() {
+        var checkboxes = document.querySelectorAll(".student-checkbox");
+        checkboxes.forEach(function (cb) {
+          if (!cb.disabled) {
+            cb.checked = false;
+          }
+        });
+      }
+
+      // Enroll selected students
+      function enrollSelectedStudents() {
+        var courseId = parseInt(document.getElementById("enrollCourse").value);
+        var year = document.getElementById("enrollYear").value;
+        var semester = document.getElementById("enrollSemester").value;
+
+        if (!courseId) {
+          alert("Please select a course");
+          return;
+        }
+
+        if (!year) {
+          alert("Please enter an academic year");
+          return;
+        }
+
+        var checkboxes = document.querySelectorAll(
+          ".student-checkbox:checked:not(:disabled)",
+        );
+
+        if (checkboxes.length === 0) {
+          alert("Please select at least one student to enroll");
+          return;
+        }
+
+        // Get already enrolled student IDs for this course
+        var enrolledStudentIds = store.enrollments
+          .filter(function (e) {
+            return e.courseId === courseId;
+          })
+          .map(function (e) {
+            return e.studentId;
+          });
+
+        var enrolledCount = 0;
+        checkboxes.forEach(function (cb) {
+          var studentId = parseInt(cb.value);
+          // Check if already enrolled
+          if (!enrolledStudentIds.includes(studentId)) {
+            store.enrollments.push({
+              studentId: studentId,
+              courseId: courseId,
+              year: year,
+              semester: semester,
+            });
+            enrolledCount++;
+          }
+        });
+
+        if (enrolledCount > 0) {
+          save();
+          renderEnrollment(true);
+          renderStudentChecklist();
+          alert(enrolledCount + " student(s) enrolled successfully!");
+        } else {
+          alert("Selected students are already enrolled in this course");
+        }
+      }
+
+      function deleteEnrollment(i) {
+        store.enrollments.splice(i, 1);
+        save();
+        renderEnrollment(true);
+      }
+
+      // Download enrollment roster as PDF
+      function downloadEnrollmentPDF() {
+        var enrollments = store.enrollments;
+
+        if (enrollments.length === 0) {
+          alert("No enrollments to download");
+          return;
+        }
+
+        var { jsPDF } = window.jspdf;
+        var doc = new jsPDF();
+
+        // Title
+        doc.setFontSize(18);
+        doc.text("Course Enrollment Roster", 14, 22);
+
+        doc.setFontSize(10);
+        doc.text("Generated: " + new Date().toLocaleDateString(), 14, 30);
+
+        // Prepare table data
+        var tableData = enrollments.map(function (e) {
+          var student = store.students.find(function (s) {
+            return s.id === e.studentId;
+          });
+          var course = store.courses.find(function (c) {
+            return c.id === e.courseId;
+          });
+          return [
+            student ? student.name : "N/A",
+            student ? student.idNum : "N/A",
+            course ? course.code : "N/A",
+            course ? course.title : "N/A",
+            course ? course.schedule : "N/A",
+            e.year || "",
+            e.semester || "",
+          ];
+        });
+
+        doc.autoTable({
+          head: [
+            [
+              "Student Name",
+              "Student ID",
+              "Course Code",
+              "Course Title",
+              "Schedule",
+              "Year",
+              "Semester",
+            ],
+          ],
+          body: tableData,
+          startY: 35,
+          theme: "striped",
+          headStyles: { fillColor: [79, 70, 229] },
+          styles: { fontSize: 8 },
+        });
+
+        doc.save("enrollment_roster.pdf");
+      }
+
+      function toggleExamFields() {
+        var type = document.getElementById("examTypeSelect").value;
+        var courseId = parseInt(
+          document.getElementById("gradeCourseSelect").value,
+        );
+        var course = store.courses.find(function (c) {
+          return c.id === courseId;
+        });
+        var isLabCourse = course && course.hasLab;
+
+        // Hide PT and Project sections for non-lab courses
+        var showPT = type === "pt" && isLabCourse;
+        var showProject = type === "project" && isLabCourse;
+
+        // Toggle visibility of grade sections (if they exist)
+        var quizGrades = document.getElementById("quizGrades");
+        var ptGrades = document.getElementById("ptGrades");
+        var projectGrades = document.getElementById("projectGrades");
+
+        if (quizGrades) {
+          quizGrades.classList.toggle("d-none", type !== "quiz");
+        }
+        if (ptGrades) {
+          ptGrades.classList.toggle("d-none", !showPT);
+        }
+        if (projectGrades) {
+          projectGrades.classList.toggle("d-none", !showProject);
+        }
+      }
+
+      // Disable other assessment types when one is selected
+      function disableOtherAssessmentTypes() {
+        var type = document.getElementById("examTypeSelect").value;
+        var courseId = parseInt(
+          document.getElementById("gradeCourseSelect").value,
+        );
+        var course = store.courses.find(function (c) {
+          return c.id === courseId;
+        });
+        var isLabCourse = course && course.hasLab;
+
+        var quizOptGroup = document.getElementById("quizOptGroup");
+        var ptOptGroup = document.getElementById("ptOptGroup");
+
+        // Get all option elements within each optgroup
+        var quizOptions = quizOptGroup.querySelectorAll("option");
+        var ptOptions = ptOptGroup.querySelectorAll("option");
+
+        // Disable all options first
+        quizOptions.forEach(function (opt) {
+          opt.disabled = true;
+        });
+        ptOptions.forEach(function (opt) {
+          opt.disabled = true;
+        });
+
+        // Enable options based on course type (don't change display - that's handled by onCourseChanged)
+        if (!courseId) {
+          // No course selected - enable all
+          quizOptions.forEach(function (opt) {
+            opt.disabled = false;
+          });
+          ptOptions.forEach(function (opt) {
+            opt.disabled = false;
+          });
+        } else if (isLabCourse) {
+          // Lab course - enable PT and Project only
+          ptOptions.forEach(function (opt) {
+            opt.disabled = false;
+          });
+        } else {
+          // Non-lab course - enable Quizzes only
+          quizOptions.forEach(function (opt) {
+            opt.disabled = false;
+          });
+        }
+      }
+
+      // Handle course selection change
+      function onCourseChanged() {
+        var courseId = parseInt(
+          document.getElementById("gradeCourseSelect").value,
+        );
+        var course = store.courses.find(function (c) {
+          return c.id === courseId;
+        });
+
+        // Check if Assessment & HPS is configured for this course
+        if (courseId) {
+          var hasAssessmentHps = checkAssessmentHpsForCourse(courseId);
+          if (!hasAssessmentHps) {
+            alert(
+              "Warning: Assessment & HPS is not configured for this course!\n\nPlease go to 'Assessment & HPS' section and configure assessments for " +
+                (course ? course.code : "this course") +
+                " before entering grades.",
+            );
+          }
+        }
+
+        // Show course schedule
+        var scheduleDisplay = document.getElementById("courseScheduleDisplay");
+        if (course) {
+          scheduleDisplay.textContent = course.schedule || "";
+        } else {
+          scheduleDisplay.textContent = "";
+        }
+
+        // Show/hide assessment options based on course type
+        var quizOptGroup = document.getElementById("quizOptGroup");
+        var ptOptGroup = document.getElementById("ptOptGroup");
+        var projectOptionDiv = document.getElementById("projectOptionDiv");
+
+        if (!courseId) {
+          // No course selected - show all options
+          quizOptGroup.style.display = "block";
+          ptOptGroup.style.display = "none";
+          projectOptionDiv.style.display = "none";
+        } else if (course && course.hasLab) {
+          // Lab course - hide quizzes, show Laboratories and Project
+          quizOptGroup.style.display = "none";
+          ptOptGroup.style.display = "block";
+          projectOptionDiv.style.display = "block";
+
+          // If Quiz is selected, switch to Laboratories
+          if (document.getElementById("examTypeSelect").value === "quiz") {
+            document.getElementById("examTypeSelect").value = "pt";
+            toggleExamFields();
+          }
+        } else {
+          // Non-lab course - show quizzes, hide Laboratories
+          quizOptGroup.style.display = "block";
+          ptOptGroup.style.display = "none";
+          projectOptionDiv.style.display = "none";
+
+          // If PT or Project is selected, switch to Quizzes
+          var currentType = document.getElementById("examTypeSelect").value;
+          if (currentType === "pt" || currentType === "project") {
+            document.getElementById("examTypeSelect").value = "quiz";
+            toggleExamFields();
+          }
+        }
+
+        // Show/hide project section based on course type
+        var projectCountDiv = document.getElementById("projectCountDiv");
+        if (course && course.hasLab) {
+          // Lab course - default to 1 project, show dropdown
+          projectCountDiv.style.display = "block";
+          document.getElementById("projectCount").value = "1";
+        } else {
+          // Non-lab course - project is optional, hide by default
+          projectCountDiv.style.display = "none";
+        }
+
+        // Disable other assessment types based on course
+        disableOtherAssessmentTypes();
+
+        // Toggle exam fields visibility based on course type
+        toggleExamFields();
+
+        // Render the enrolled students table
+        renderGradeEntryTable();
+
+        // Render dynamic quiz fields
+        renderQuizFields();
+
+        // Render dynamic PT fields
+        renderPTFields();
+
+        // Check Assessment & HPS status for grade entry
+        checkGradeEntryAvailability();
+      }
+
+      // Toggle project fields based on checkbox
+      function toggleProjectFields() {
+        var enableProject = document.getElementById("enableProject").checked;
+        var projectCountDiv = document.getElementById("projectCountDiv");
+
+        if (enableProject) {
+          projectCountDiv.style.display = "block";
+          document.getElementById("examTypeSelect").value = "project";
+        } else {
+          projectCountDiv.style.display = "none";
+          document.getElementById("examTypeSelect").value = "written";
+        }
+        toggleExamFields();
+        renderGradeEntryTable();
+      }
+
+      // Render enrolled students table for grade entry
+      function renderGradeEntryTable() {
+        var courseId = parseInt(
+          document.getElementById("gradeCourseSelect").value,
+        );
+
+        // Check if Assessment & HPS is configured for this course
+        if (courseId) {
+          var hasAssessmentHps = checkAssessmentHpsForCourse(courseId);
+          if (!hasAssessmentHps) {
+            alert(
+              "Assessment & HPS is not configured for this course!\n\nPlease go to 'Assessment & HPS' section and configure the assessments first before entering grades.",
+            );
+            // Clear the table and hide it
+            var table = document.getElementById("gradeEntryTable");
+            var tbody = document.getElementById("gradeEntryTableBody");
+            var noStudents = document.getElementById("noEnrolledStudents");
+            var inputPanel = document.getElementById("gradeInputPanel");
+            table.classList.add("d-none");
+            noStudents.classList.remove("d-none");
+            noStudents.querySelector("p").textContent =
+              "Please configure Assessment & HPS first";
+            inputPanel.classList.add("d-none");
+            return;
+          }
+        }
+
+        var examType = document.getElementById("examTypeSelect").value;
+
+        var table = document.getElementById("gradeEntryTable");
+        var tbody = document.getElementById("gradeEntryTableBody");
+        var noStudents = document.getElementById("noEnrolledStudents");
+        var inputPanel = document.getElementById("gradeInputPanel");
+
+        if (!courseId) {
+          table.classList.add("d-none");
+          noStudents.classList.remove("d-none");
+          noStudents.querySelector("p").textContent =
+            "Select a course to view enrolled students";
+          inputPanel.classList.add("d-none");
+          return;
+        }
+
+        // Get enrollments for this course
+        var courseEnrollments = store.enrollments.filter(function (e) {
+          return e.courseId === courseId;
+        });
+
+        if (courseEnrollments.length === 0) {
+          table.classList.add("d-none");
+          noStudents.classList.remove("d-none");
+          noStudents.querySelector("p").textContent =
+            "No students enrolled in this course";
+          inputPanel.classList.add("d-none");
+          return;
+        }
+
+        table.classList.remove("d-none");
+        noStudents.classList.add("d-none");
+
+        // Update header based on assessment type
+        var assessmentHeader = document.getElementById("assessmentHeader");
+        var assessmentTitles = {
+          written: "Written Exams",
+          quiz: "Quizzes",
+          pt: "Laboratories",
+          project: "Project",
+        };
+        assessmentHeader.textContent = assessmentTitles[examType] || "Scores";
+
+        // Render table rows
+        tbody.innerHTML = courseEnrollments
+          .map(function (e) {
+            var student = store.students.find(function (s) {
+              return s.id === e.studentId;
+            });
+            if (!student) return "";
+
+            // Get existing grades
+            var key = student.id + "_" + courseId;
+            var grades = store.grades[key] || {};
+
+            // Get scores based on exam type - using dynamic titles from Assessment & HPS
+            var scoresText = "";
+            if (examType === "written") {
+              var w = grades.written || { p: 0, m: 0, pf: 0, f: 0 };
+              // Get assessment titles from Assessment & HPS
+              var writtenData = getAssessmentDataForCourse(courseId, "written");
+              var writtenAssessments = {};
+              if (
+                writtenData.assessments &&
+                writtenData.assessments.length > 0
+              ) {
+                writtenData.assessments.forEach(function (a) {
+                  writtenAssessments[a.subType] = a.title;
+                });
+              }
+              var pTitle = writtenAssessments.p || "P";
+              var mTitle = writtenAssessments.m || "M";
+              var pfTitle = writtenAssessments.pf || "PF";
+              var fTitle = writtenAssessments.f || "F";
+              scoresText =
+                pTitle +
+                ": " +
+                w.p +
+                " | " +
+                mTitle +
+                ": " +
+                w.m +
+                " | " +
+                pfTitle +
+                ": " +
+                w.pf +
+                " | " +
+                fTitle +
+                ": " +
+                w.f;
+            } else if (examType === "quiz") {
+              var q = grades.quiz || {};
+              var quizCount = grades.quizCount || 4;
+              // Get quiz titles from Assessment & HPS
+              var quizData = getAssessmentDataForCourse(courseId, "quiz");
+              var scoreArr = [];
+              for (var i = 1; i <= quizCount; i++) {
+                var quizTitle =
+                  (quizData.assessments[i - 1] &&
+                    quizData.assessments[i - 1].title) ||
+                  "Q" + i;
+                scoreArr.push(quizTitle + ": " + (q["q" + i] || 0));
+              }
+              scoresText = scoreArr.join(" | ");
+            } else if (examType === "pt") {
+              var p = grades.pt || { p1: 0, p2: 0, p3: 0, p4: 0 };
+              // Get PT titles from Assessment & HPS
+              var ptData = getAssessmentDataForCourse(courseId, "pt");
+              var ptCount =
+                ptData.assessments.length > 0 ? ptData.assessments.length : 4;
+              var scoreArr = [];
+              for (var i = 1; i <= ptCount; i++) {
+                var ptTitle =
+                  (ptData.assessments[i - 1] &&
+                    ptData.assessments[i - 1].title) ||
+                  "PT" + i;
+                scoreArr.push(ptTitle + ": " + (p["p" + i] || 0));
+              }
+              scoresText = scoreArr.join(" | ");
+            } else if (examType === "project") {
+              var proj = grades.project || {};
+              // Get Project titles from Assessment & HPS
+              var projectData = getAssessmentDataForCourse(courseId, "project");
+              var projectCount =
+                projectData.assessments.length > 0
+                  ? projectData.assessments.length
+                  : 2;
+              var scoreArr = [];
+              for (var i = 1; i <= projectCount; i++) {
+                var projectTitle =
+                  (projectData.assessments[i - 1] &&
+                    projectData.assessments[i - 1].title) ||
+                  "Proj" + i;
+                scoreArr.push(projectTitle + ": " + (proj["p" + i] || 0));
+              }
+              scoresText = scoreArr.join(" | ");
+            }
+
+            return (
+              "<tr>" +
+              "<td>" +
+              student.name +
+              "</td>" +
+              "<td>" +
+              student.idNum +
+              "</td>" +
+              "<td>" +
+              scoresText +
+              "</td>" +
+              '<td><button class="btn btn-sm btn-primary" onclick="selectStudentForGrade(' +
+              student.id +
+              ')"><i class="fas fa-edit"></i> Enter</button></td>' +
+              "</tr>"
+            );
+          })
+          .join("");
+      }
+
+      // Select student and show grade input panel
+      var selectedStudentIdForGrade = null;
+
+      function selectStudentForGrade(studentId) {
+        selectedStudentIdForGrade = studentId;
+        var courseId = parseInt(
+          document.getElementById("gradeCourseSelect").value,
+        );
+        var examType = document.getElementById("examTypeSelect").value;
+
+        var student = store.students.find(function (s) {
+          return s.id === studentId;
+        });
+        var course = store.courses.find(function (c) {
+          return c.id === courseId;
+        });
+
+        if (!student || !course) return;
+
+        // Show input panel
+        var inputPanel = document.getElementById("gradeInputPanel");
+        var inputTitle = document.getElementById("gradeInputTitle");
+        var inputFields = document.getElementById("gradeInputFields");
+
+        inputPanel.classList.remove("d-none");
+        inputTitle.textContent =
+          "Enter Grades for " + student.name + " - " + course.code;
+
+        // Get existing grades
+        var key = studentId + "_" + courseId;
+        var grades = store.grades[key] || {};
+
+        // Render input fields based on exam type
+        var html = "";
+
+        if (examType === "written") {
+          var w = grades.written || { p: 0, m: 0, pf: 0, f: 0 };
+          var q = grades.quiz || {};
+          var quizCount = grades.quizCount || 4;
+
+          // Get assessment data from Assessment & HPS section
+          var writtenData = getAssessmentDataForCourse(courseId, "written");
+
+          // Map written assessments to their subtypes
+          var writtenAssessments = {};
+          if (writtenData.assessments && writtenData.assessments.length > 0) {
+            writtenData.assessments.forEach(function (a) {
+              writtenAssessments[a.subType] = a;
+            });
+          }
+
+          // Default titles for written exams
+          var defaultWritten = {
+            p: { title: "Prelim", hps: 100 },
+            m: { title: "Midterm", hps: 100 },
+            pf: { title: "Pre-Final", hps: 100 },
+            f: { title: "Final", hps: 100 },
+          };
+
+          var months = [
+            "January",
+            "February",
+            "March",
+            "April",
+            "May",
+            "June",
+            "July",
+            "August",
+            "September",
+            "October",
+            "November",
+            "December",
+          ];
+
+          // Build Written Exam (Major Exams) section with dynamic titles from Assessment & HPS
+          var html =
+            '<h6 class="fw-bold mb-3">Major Exams</h6><div class="row">';
+
+          // Prelim
+          var pData = writtenAssessments.p || defaultWritten.p;
+          var pHps = writtenData.hps.p || 100;
+          html +=
+            '<div class="col-md-3 mb-3"><label class="form-label">' +
+            pData.title +
+            ' <small class="text-muted">(HPS: ' +
+            pHps +
+            ')</small></label><select class="form-select mb-2" id="inputPrelimMonth"><option value="">Select Month</option>' +
+            months
+              .map(function (m) {
+                return (
+                  '<option value="' +
+                  m +
+                  '"' +
+                  (w.pMonth === m ? " selected" : "") +
+                  ">" +
+                  m +
+                  "</option>"
+                );
+              })
+              .join("") +
+            '</select><input type="text" class="form-control mb-1" id="inputPrelimTitle" placeholder="Title" value="' +
+            (w.pTitle || pData.title) +
+            '" /><input type="date" class="form-control mb-1" id="inputPrelimDate" value="' +
+            (w.pDate || "") +
+            '" /><input type="number" class="form-control" id="inputScorePrelim" value="' +
+            w.p +
+            '" placeholder="Score (max: ' +
+            pHps +
+            ')" /></div>';
+
+          // Midterm
+          var mData = writtenAssessments.m || defaultWritten.m;
+          var mHps = writtenData.hps.m || 100;
+          html +=
+            '<div class="col-md-3 mb-3"><label class="form-label">' +
+            mData.title +
+            ' <small class="text-muted">(HPS: ' +
+            mHps +
+            ')</small></label><select class="form-select mb-2" id="inputMidtermMonth"><option value="">Select Month</option>' +
+            months
+              .map(function (m) {
+                return (
+                  '<option value="' +
+                  m +
+                  '"' +
+                  (w.mMonth === m ? " selected" : "") +
+                  ">" +
+                  m +
+                  "</option>"
+                );
+              })
+              .join("") +
+            '</select><input type="text" class="form-control mb-1" id="inputMidtermTitle" placeholder="Title" value="' +
+            (w.mTitle || mData.title) +
+            '" /><input type="date" class="form-control mb-1" id="inputMidtermDate" value="' +
+            (w.mDate || "") +
+            '" /><input type="number" class="form-control" id="inputScoreMidterm" value="' +
+            w.m +
+            '" placeholder="Score (max: ' +
+            mHps +
+            ')" /></div>';
+
+          // Pre-Final
+          var pfData = writtenAssessments.pf || defaultWritten.pf;
+          var pfHps = writtenData.hps.pf || 100;
+          html +=
+            '<div class="col-md-3 mb-3"><label class="form-label">' +
+            pfData.title +
+            ' <small class="text-muted">(HPS: ' +
+            pfHps +
+            ')</small></label><select class="form-select mb-2" id="inputPrefinalMonth"><option value="">Select Month</option>' +
+            months
+              .map(function (m) {
+                return (
+                  '<option value="' +
+                  m +
+                  '"' +
+                  (w.pfMonth === m ? " selected" : "") +
+                  ">" +
+                  m +
+                  "</option>"
+                );
+              })
+              .join("") +
+            '</select><input type="text" class="form-control mb-1" id="inputPrefinalTitle" placeholder="Title" value="' +
+            (w.pfTitle || pfData.title) +
+            '" /><input type="date" class="form-control mb-1" id="inputPrefinalDate" value="' +
+            (w.pfDate || "") +
+            '" /><input type="number" class="form-control" id="inputScorePreFinal" value="' +
+            w.pf +
+            '" placeholder="Score (max: ' +
+            pfHps +
+            ')" /></div>';
+
+          // Final
+          var fData = writtenAssessments.f || defaultWritten.f;
+          var fHps = writtenData.hps.f || 100;
+          html +=
+            '<div class="col-md-3 mb-3"><label class="form-label">' +
+            fData.title +
+            ' <small class="text-muted">(HPS: ' +
+            fHps +
+            ')</small></label><select class="form-select mb-2" id="inputFinalMonth"><option value="">Select Month</option>' +
+            months
+              .map(function (m) {
+                return (
+                  '<option value="' +
+                  m +
+                  '"' +
+                  (w.fMonth === m ? " selected" : "") +
+                  ">" +
+                  m +
+                  "</option>"
+                );
+              })
+              .join("") +
+            '</select><input type="text" class="form-control mb-1" id="inputFinalTitle" placeholder="Title" value="' +
+            (w.fTitle || fData.title) +
+            '" /><input type="date" class="form-control mb-1" id="inputFinalDate" value="' +
+            (w.fDate || "") +
+            '" /><input type="number" class="form-control" id="inputScoreFinal" value="' +
+            w.f +
+            '" placeholder="Score (max: ' +
+            fHps +
+            ')" /></div>';
+
+          // Add Quizzes section for non-lab courses
+          html +=
+            '</div><h6 class="fw-bold mb-3 mt-3">Quizzes</h6><div class="mb-3"><label class="form-label">Number of Quizzes:</label>' +
+            '<select class="form-select d-inline-block w-auto" id="inputQuizCount" onchange="renderQuizInputFields()">' +
+            [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+              .map(function (n) {
+                return (
+                  '<option value="' +
+                  n +
+                  '"' +
+                  (n === quizCount ? " selected" : "") +
+                  ">" +
+                  n +
+                  "</option>"
+                );
+              })
+              .join("") +
+            '</select></div><div class="row" id="quizInputFields"></div><button class="btn btn-primary mt-3" onclick="saveStudentGrade()">Save Grades</button>';
+
+          // Store temporarily to render after setting html
+          setTimeout(function () {
+            renderQuizInputFields(q, quizCount);
+          }, 100);
+        } else if (examType === "pt") {
+          var p = grades.pt || { p1: 0, p2: 0, p3: 0, p4: 0 };
+
+          // Get assessment data from Assessment & HPS section
+          var ptData = getAssessmentDataForCourse(courseId, "pt");
+          var ptCount =
+            ptData.assessments.length > 0 ? ptData.assessments.length : 4;
+
+          var months = [
+            "January",
+            "February",
+            "March",
+            "April",
+            "May",
+            "June",
+            "July",
+            "August",
+            "September",
+            "October",
+            "November",
+            "December",
+          ];
+
+          // Build PT input fields dynamically based on Assessment & HPS data
+          var html = '<div class="row">';
+          for (var ptIdx = 1; ptIdx <= ptCount; ptIdx++) {
+            var ptAssessment = ptData.assessments[ptIdx - 1] || {
+              title: "PT " + ptIdx,
+              month: "",
+              hps: 100,
+            };
+            var ptKey = "p" + ptIdx;
+            var ptScore = p[ptKey] || 0;
+            var ptMonthKey = ptKey + "Month";
+            var ptMonth = p[ptMonthKey] || "";
+            var ptHps = ptData.hps[ptKey] || 100;
+
+            html +=
+              '<div class="col-md-3 mb-3"><label class="form-label">' +
+              ptAssessment.title +
+              ' <small class="text-muted">(HPS: ' +
+              ptHps +
+              ")</small></label>" +
+              '<select class="form-select mb-2" id="inputPt' +
+              ptIdx +
+              'Month"><option value="">Select Month</option>' +
+              months
+                .map(function (m) {
+                  return (
+                    '<option value="' +
+                    m +
+                    '"' +
+                    (ptMonth === m ? " selected" : "") +
+                    ">" +
+                    m +
+                    "</option>"
+                  );
+                })
+                .join("") +
+              '</select><input type="number" class="form-control" id="inputPt' +
+              ptIdx +
+              '" value="' +
+              ptScore +
+              '" placeholder="Score (max: ' +
+              ptHps +
+              ')" /></div>';
+          }
+          html +=
+            '</div><button class="btn btn-primary" onclick="saveStudentGrade()">Save Grades</button>';
+        } else if (examType === "project") {
+          var proj = grades.project || { p1: 0, p2: 0 };
+
+          // Get assessment data from Assessment & HPS section
+          var projectData = getAssessmentDataForCourse(courseId, "project");
+          var projectCount =
+            projectData.assessments.length > 0
+              ? projectData.assessments.length
+              : 2;
+
+          var months = [
+            "January",
+            "February",
+            "March",
+            "April",
+            "May",
+            "June",
+            "July",
+            "August",
+            "September",
+            "October",
+            "November",
+            "December",
+          ];
+
+          // Build Project input fields dynamically based on Assessment & HPS data
+          var html = '<div class="row">';
+          for (var projIdx = 1; projIdx <= projectCount; projIdx++) {
+            var projectAssessment = projectData.assessments[projIdx - 1] || {
+              title: "Project " + projIdx,
+              month: "",
+              hps: 100,
+            };
+            var projKey = "p" + projIdx;
+            var projScore = proj[projKey] || 0;
+            var projMonthKey = projKey + "Month";
+            var projMonth = proj[projMonthKey] || "";
+            var projHps = projectData.hps[projKey] || 100;
+
+            html +=
+              '<div class="col-md-6 mb-3"><label class="form-label">' +
+              projectAssessment.title +
+              ' <small class="text-muted">(HPS: ' +
+              projHps +
+              ")</small></label>" +
+              '<select class="form-select mb-2" id="inputProject' +
+              projIdx +
+              'Month"><option value="">Select Month</option>' +
+              months
+                .map(function (m) {
+                  return (
+                    '<option value="' +
+                    m +
+                    '"' +
+                    (projMonth === m ? " selected" : "") +
+                    ">" +
+                    m +
+                    "</option>"
+                  );
+                })
+                .join("") +
+              '</select><input type="number" class="form-control" id="inputProject' +
+              projIdx +
+              '" value="' +
+              projScore +
+              '" placeholder="Score (max: ' +
+              projHps +
+              ')" /></div>';
+          }
+          html +=
+            '</div><button class="btn btn-primary" onclick="saveStudentGrade()">Save Grades</button>';
+        }
+
+        inputFields.innerHTML = html;
+
+        // For quiz, render after setting innerHTML
+        if (examType === "quiz") {
+          var quizCount = grades.quizCount || 4;
+          renderQuizInputFields(q, quizCount);
+        }
+      }
+
+      // Render quiz input fields dynamically
+      function renderQuizInputFields(existingGrades, count) {
+        var container = document.getElementById("quizInputFields");
+        if (!container) return;
+
+        var quizCount =
+          count ||
+          parseInt(document.getElementById("inputQuizCount")?.value) ||
+          4;
+        var q = existingGrades || {};
+
+        // Get assessment data from Assessment & HPS section
+        var courseId = parseInt(
+          document.getElementById("gradeCourseSelect")?.value,
+        );
+        var quizData = getAssessmentDataForCourse(courseId, "quiz");
+
+        var months = [
+          "January",
+          "February",
+          "March",
+          "April",
+          "May",
+          "June",
+          "July",
+          "August",
+          "September",
+          "October",
+          "November",
+          "December",
+        ];
+
+        var html = "";
+        for (var i = 1; i <= quizCount; i++) {
+          var quizAssessment = quizData.assessments[i - 1] || {
+            title: "Quiz " + i,
+            month: "",
+            hps: 50,
+          };
+          var quizHps = quizData.hps["q" + i] || 50;
+
+          html +=
+            '<div class="col-md-3 mb-3">' +
+            '<label class="form-label">' +
+            quizAssessment.title +
+            ' <small class="text-muted">(HPS: ' +
+            quizHps +
+            ")</small></label>" +
+            '<select class="form-select mb-2" id="inputQuiz' +
+            i +
+            'Month">' +
+            '<option value="">Select Month</option>' +
+            months
+              .map(function (m) {
+                return (
+                  '<option value="' +
+                  m +
+                  '"' +
+                  (q["q" + i + "Month"] === m ? " selected" : "") +
+                  ">" +
+                  m +
+                  "</option>"
+                );
+              })
+              .join("") +
+            "</select>" +
+            '<input type="text" class="form-control mb-1" id="inputQuiz' +
+            i +
+            'Title" placeholder="Title" value="' +
+            (q["q" + i + "Title"] || quizAssessment.title) +
+            '" />' +
+            '<input type="date" class="form-control mb-1" id="inputQuiz' +
+            i +
+            'Date" value="' +
+            (q["q" + i + "Date"] || "") +
+            '" />' +
+            '<input type="number" class="form-control" id="inputQuiz' +
+            i +
+            '" value="' +
+            (q["q" + i] || 0) +
+            '" placeholder="Score (max: ' +
+            quizHps +
+            ')" />' +
+            "</div>";
+        }
+        container.innerHTML = html;
+      }
+
+      // Save student grade
+      function saveStudentGrade() {
+        var courseId = parseInt(
+          document.getElementById("gradeCourseSelect").value,
+        );
+        var examType = document.getElementById("examTypeSelect").value;
+
+        if (!selectedStudentIdForGrade || !courseId) {
+          alert("Please select a student and course");
+          return;
+        }
+
+        var key = selectedStudentIdForGrade + "_" + courseId;
+        var grades = store.grades[key] || {
+          written: { p: 0, m: 0, pf: 0, f: 0 },
+          quiz: {},
+          pt: { p1: 0, p2: 0, p3: 0, p4: 0 },
+          project: { p1: 0, p2: 0 },
+        };
+
+        if (examType === "written") {
+          grades.written = {
+            p:
+              parseFloat(document.getElementById("inputScorePrelim").value) ||
+              0,
+            m:
+              parseFloat(document.getElementById("inputScoreMidterm").value) ||
+              0,
+            pf:
+              parseFloat(document.getElementById("inputScorePreFinal").value) ||
+              0,
+            f:
+              parseFloat(document.getElementById("inputScoreFinal").value) || 0,
+            pMonth: document.getElementById("inputPrelimMonth").value,
+            mMonth: document.getElementById("inputMidtermMonth").value,
+            pfMonth: document.getElementById("inputPrefinalMonth").value,
+            fMonth: document.getElementById("inputFinalMonth").value,
+          };
+        } else if (examType === "quiz") {
+          var quizCount =
+            parseInt(document.getElementById("inputQuizCount").value) || 4;
+          grades.quizCount = quizCount;
+          grades.quiz = {};
+          for (var i = 1; i <= quizCount; i++) {
+            grades.quiz["q" + i] =
+              parseFloat(document.getElementById("inputQuiz" + i).value) || 0;
+            grades.quiz["q" + i + "Month"] =
+              document.getElementById("inputQuiz" + i + "Month").value || "";
+            grades.quiz["q" + i + "Title"] =
+              document.getElementById("inputQuiz" + i + "Title").value || "";
+            grades.quiz["q" + i + "Date"] =
+              document.getElementById("inputQuiz" + i + "Date").value || "";
+          }
+        } else if (examType === "pt") {
+          // Get PT data from Assessment & HPS to determine how many PT fields to save
+          var ptData = getAssessmentDataForCourse(courseId, "pt");
+          var ptCount =
+            ptData.assessments.length > 0 ? ptData.assessments.length : 4;
+
+          grades.pt = {};
+          for (var i = 1; i <= ptCount; i++) {
+            grades.pt["p" + i] =
+              parseFloat(document.getElementById("inputPt" + i)?.value) || 0;
+            grades.pt["p" + i + "Month"] =
+              document.getElementById("inputPt" + i + "Month")?.value || "";
+          }
+        } else if (examType === "project") {
+          // Get Project data from Assessment & HPS to determine how many Project fields to save
+          var projectData = getAssessmentDataForCourse(courseId, "project");
+          var projectCount =
+            projectData.assessments.length > 0
+              ? projectData.assessments.length
+              : 2;
+
+          grades.project = {};
+          for (var i = 1; i <= projectCount; i++) {
+            grades.project["p" + i] =
+              parseFloat(document.getElementById("inputProject" + i)?.value) ||
+              0;
+            grades.project["p" + i + "Month"] =
+              document.getElementById("inputProject" + i + "Month")?.value ||
+              "";
+          }
+        }
+
+        store.grades[key] = grades;
+        save();
+
+        // Refresh the table
+        renderGradeEntryTable();
+
+        // Update grades summary
+        updateGradesSummary();
+
+        alert("Grades saved!");
+      }
+
+      // Render dynamic quiz fields based on count
+      function renderQuizFields() {
+        // Skip if elements don't exist (HPS section was removed)
+        if (!document.getElementById("quizCount")) return;
+
+        var count = parseInt(document.getElementById("quizCount").value) || 4;
+        var container = document.getElementById("quizFieldsContainer");
+        var courseId = parseInt(
+          document.getElementById("gradeCourseSelect").value,
+        );
+        var months = [
+          "January",
+          "February",
+          "March",
+          "April",
+          "May",
+          "June",
+          "July",
+          "August",
+          "September",
+          "October",
+          "November",
+          "December",
+        ];
+
+        // Get assessments for this course to populate titles - from new assessment format
+        var courseKey = courseId ? "course_" + courseId : "default";
+        var courseAssessments = [];
+
+        // Try to load from new Assessment & HPS format first
+        if (
+          store.hps.perAssessment &&
+          store.hps.perAssessment[courseKey] &&
+          store.hps.perAssessment[courseKey].quiz
+        ) {
+          var quizHps = store.hps.perAssessment[courseKey].quiz;
+          Object.keys(quizHps).forEach(function (key, index) {
+            courseAssessments.push({
+              title: "Quiz " + (index + 1),
+              hps: quizHps[key],
+            });
+          });
+        } else {
+          // Fallback to old format - from store.assessments
+          courseAssessments = courseId
+            ? store.assessments.filter(function (a) {
+                return a.courseId === courseId && a.type === "quiz";
+              })
+            : [];
+        }
+
+        var html = "";
+        for (var i = 1; i <= count; i++) {
+          var assessment = courseAssessments[i - 1];
+          var title = assessment ? assessment.title : "";
+          var date = assessment ? assessment.date || "" : "";
+
+          html +=
+            '<div class="col-md-3 mb-3">' +
+            '<label class="form-label">Quiz ' +
+            i +
+            (title && title !== "Quiz " + i ? " - " + title : "") +
+            "</label>" +
+            '<select class="form-select mb-2" id="quiz' +
+            i +
+            'Month">' +
+            '<option value="">Select Month</option>' +
+            months
+              .map(function (m) {
+                return '<option value="' + m + '">' + m + "</option>";
+              })
+              .join("") +
+            "</select>" +
+            '<input type="text" class="form-control mb-1" id="quiz' +
+            i +
+            'Title" placeholder="Title" value="' +
+            (title || "") +
+            '" />' +
+            '<input type="date" class="form-control mb-1" id="quiz' +
+            i +
+            'Date" value="' +
+            (date || "") +
+            '" />' +
+            '<input type="number" class="form-control mt-2" id="quiz' +
+            i +
+            '" placeholder="Score" />' +
+            "</div>";
+        }
+        if (container) {
+          container.innerHTML = html;
+        }
+
+        // Render Quiz HPS fields
+        renderQuizHpsFields(count);
+      }
+
+      // Render dynamic Quiz HPS fields
+      function renderQuizHpsFields(count) {
+        // Skip if container doesn't exist (HPS section was removed)
+        var container = document.getElementById("quizHpsContainer");
+        if (!container) return;
+
+        var defaultHps = store.hps ? store.hps.quiz : 50;
+
+        // Get course-specific HPS if available
+        var courseId = parseInt(
+          document.getElementById("gradeCourseSelect").value,
+        );
+        var courseKey = courseId ? "course_" + courseId : "default";
+        var courseHps = store.hps.perAssessment
+          ? store.hps.perAssessment[courseKey]
+          : null;
+
+        var html = "";
+        for (var i = 1; i <= count; i++) {
+          var hpsValue = 50;
+          if (
+            courseHps &&
+            courseHps.quiz &&
+            courseHps.quiz["q" + i] !== undefined
+          ) {
+            hpsValue = courseHps.quiz["q" + i];
+          }
+
+          html +=
+            '<div class="col-md-3 mb-2">' +
+            '<label class="form-label small">Quiz ' +
+            i +
+            " HPS</label>" +
+            '<input type="number" class="form-control form-control-sm" id="quizHps' +
+            i +
+            '" value="' +
+            hpsValue +
+            '" min="1" />' +
+            "</div>";
+        }
+        container.innerHTML = html;
+      }
+
+      // Render dynamic PT fields based on count
+      function renderPTFields() {
+        // Skip if elements don't exist (HPS section was removed)
+        if (!document.getElementById("ptCount")) return;
+
+        var count = parseInt(document.getElementById("ptCount").value) || 4;
+        var container = document.getElementById("ptFieldsContainer");
+        var courseId = parseInt(
+          document.getElementById("gradeCourseSelect").value,
+        );
+        var months = [
+          "January",
+          "February",
+          "March",
+          "April",
+          "May",
+          "June",
+          "July",
+          "August",
+          "September",
+          "October",
+          "November",
+          "December",
+        ];
+
+        // Get assessments for this course - from new assessment format
+        var courseKey = courseId ? "course_" + courseId : "default";
+        var courseAssessments = [];
+
+        // Try to load from new Assessment & HPS format first
+        if (
+          store.hps.perAssessment &&
+          store.hps.perAssessment[courseKey] &&
+          store.hps.perAssessment[courseKey].pt
+        ) {
+          var ptHps = store.hps.perAssessment[courseKey].pt;
+          Object.keys(ptHps).forEach(function (key, index) {
+            courseAssessments.push({
+              title: "PT " + (index + 1),
+              hps: ptHps[key],
+            });
+          });
+        } else {
+          // Fallback to old format
+          courseAssessments = courseId
+            ? store.assessments.filter(function (a) {
+                return a.courseId === courseId && a.type === "pt";
+              })
+            : [];
+        }
+
+        var html = "";
+        for (var i = 1; i <= count; i++) {
+          var assessment = courseAssessments[i - 1];
+          var title = assessment ? assessment.title : "";
+          var date = assessment ? assessment.date || "" : "";
+
+          html +=
+            '<div class="col-md-3 mb-3">' +
+            '<label class="form-label">PT ' +
+            i +
+            (title && title !== "PT " + i ? " - " + title : "") +
+            "</label>" +
+            '<select class="form-select mb-2" id="pt' +
+            i +
+            'Month">' +
+            '<option value="">Select Month</option>' +
+            months
+              .map(function (m) {
+                return '<option value="' + m + '">' + m + "</option>";
+              })
+              .join("") +
+            "</select>" +
+            '<input type="text" class="form-control mb-1" id="pt' +
+            i +
+            'Title" placeholder="Title" value="' +
+            (title || "") +
+            '" />' +
+            '<input type="date" class="form-control mb-1" id="pt' +
+            i +
+            'Date" value="' +
+            (date || "") +
+            '" />' +
+            '<input type="number" class="form-control mt-2" id="pt' +
+            i +
+            '" placeholder="Score" />' +
+            "</div>";
+        }
+        if (container) {
+          container.innerHTML = html;
+        }
+
+        // Render PT HPS fields
+        renderPtHpsFields(count);
+      }
+
+      // Render dynamic PT HPS fields
+      function renderPtHpsFields(count) {
+        // Skip if container doesn't exist (HPS section was removed)
+        var container = document.getElementById("ptHpsContainer");
+        if (!container) return;
+
+        var defaultHps = store.hps ? store.hps.pt : 100;
+
+        // Get course-specific HPS if available
+        var courseId = parseInt(
+          document.getElementById("gradeCourseSelect").value,
+        );
+        var courseKey = courseId ? "course_" + courseId : "default";
+        var courseHps = store.hps.perAssessment
+          ? store.hps.perAssessment[courseKey]
+          : null;
+
+        var html = "";
+        for (var i = 1; i <= count; i++) {
+          var hpsValue = 100;
+          if (
+            courseHps &&
+            courseHps.pt &&
+            courseHps.pt["p" + i] !== undefined
+          ) {
+            hpsValue = courseHps.pt["p" + i];
+          }
+
+          html +=
+            '<div class="col-md-3 mb-2">' +
+            '<label class="form-label small">PT ' +
+            i +
+            " HPS</label>" +
+            '<input type="number" class="form-control form-control-sm" id="ptHps' +
+            i +
+            '" value="' +
+            hpsValue +
+            '" min="1" />' +
+            "</div>";
+        }
+        container.innerHTML = html;
+      }
+
+      // Render dynamic Project fields based on count
+      function renderProjectFields() {
+        var count =
+          parseInt(document.getElementById("projectCount").value) || 1;
+        var container = document.getElementById("projectFieldsContainer");
+        var courseId = parseInt(
+          document.getElementById("gradeCourseSelect").value,
+        );
+        var months = [
+          "January",
+          "February",
+          "March",
+          "April",
+          "May",
+          "June",
+          "July",
+          "August",
+          "September",
+          "October",
+          "November",
+          "December",
+        ];
+
+        // Get assessments for this course - from new assessment format
+        var courseKey = courseId ? "course_" + courseId : "default";
+        var courseAssessments = [];
+
+        // Try to load from new Assessment & HPS format first
+        if (
+          store.hps.perAssessment &&
+          store.hps.perAssessment[courseKey] &&
+          store.hps.perAssessment[courseKey].project
+        ) {
+          var projectHps = store.hps.perAssessment[courseKey].project;
+          Object.keys(projectHps).forEach(function (key, index) {
+            courseAssessments.push({
+              title: "Project " + (index + 1),
+              hps: projectHps[key],
+            });
+          });
+        } else {
+          // Fallback to old format
+          courseAssessments = courseId
+            ? store.assessments.filter(function (a) {
+                return a.courseId === courseId && a.type === "project";
+              })
+            : [];
+        }
+
+        var html = "";
+        for (var i = 1; i <= count; i++) {
+          var assessment = courseAssessments[i - 1];
+          var title = assessment ? assessment.title : "";
+          var date = assessment ? assessment.date || "" : "";
+
+          html +=
+            '<div class="col-md-6 mb-3">' +
+            '<label class="form-label">Project ' +
+            i +
+            (title && title !== "Project " + i ? " - " + title : "") +
+            "</label>" +
+            '<select class="form-select mb-2" id="project' +
+            i +
+            'Month">' +
+            '<option value="">Select Month</option>' +
+            months
+              .map(function (m) {
+                return '<option value="' + m + '">' + m + "</option>";
+              })
+              .join("") +
+            "</select>" +
+            '<input type="text" class="form-control mb-1" id="project' +
+            i +
+            'Title" placeholder="Project Title" value="' +
+            (title || "") +
+            '" />' +
+            '<input type="date" class="form-control mb-1" id="project' +
+            i +
+            'Date" value="' +
+            (date || "") +
+            '" />' +
+            '<input type="number" class="form-control mt-2" id="project' +
+            i +
+            '" placeholder="Score" />' +
+            "</div>";
+        }
+        container.innerHTML = html;
+
+        // Render Project HPS fields
+        renderProjectHpsFields(count);
+      }
+
+      // Render dynamic Project HPS fields
+      function renderProjectHpsFields(count) {
+        var container = document.getElementById("projectHpsContainer");
+        var defaultHps = store.hps ? store.hps.project : 100;
+
+        // Get course-specific HPS if available
+        var courseId = parseInt(
+          document.getElementById("gradeCourseSelect").value,
+        );
+        var courseKey = courseId ? "course_" + courseId : "default";
+        var courseHps = store.hps.perAssessment
+          ? store.hps.perAssessment[courseKey]
+          : null;
+
+        var html = "";
+        for (var i = 1; i <= count; i++) {
+          var hpsValue = 100;
+          if (
+            courseHps &&
+            courseHps.project &&
+            courseHps.project["p" + i] !== undefined
+          ) {
+            hpsValue = courseHps.project["p" + i];
+          }
+
+          html +=
+            '<div class="col-md-6 mb-2">' +
+            '<label class="form-label small">Project ' +
+            i +
+            " HPS</label>" +
+            '<input type="number" class="form-control form-control-sm" id="projectHps' +
+            i +
+            '" value="' +
+            hpsValue +
+            '" min="1" />' +
+            "</div>";
+        }
+        container.innerHTML = html;
+      }
+
+      function populateGradeSelects() {
+        // Populate courses with schedule
+        document.getElementById("gradeCourseSelect").innerHTML =
+          '<option value="">Select Course</option>' +
+          store.courses
+            .map(function (c) {
+              return (
+                '<option value="' +
+                c.id +
+                '">' +
+                c.code +
+                " - " +
+                c.schedule +
+                "</option>"
+              );
+            })
+            .join("");
+
+        var studentSelect = document.getElementById("gradeStudentSelect");
+        if (studentSelect) {
+          studentSelect.innerHTML =
+            '<option value="">Select Student</option>' +
+            store.students
+              .map(function (s) {
+                return '<option value="' + s.id + '">' + s.name + "</option>";
+              })
+              .join("");
+        }
+
+        // Initialize quiz fields
+        renderQuizFields();
+
+        // Initialize PT fields
+        renderPTFields();
+      }
+
+      function saveGrades() {
+        // Skip if elements don't exist (HPS section was removed)
+        // Grades are now saved from the Assessment & HPS section
+        if (!document.getElementById("quizCount")) {
+          // Just update grades summary if HPS section doesn't exist
+          updateGradesSummary();
+          alert("Grades saved!");
+          return;
+        }
+
+        // Save per-assessment HPS values for the selected course
+        var courseId = parseInt(
+          document.getElementById("gradeCourseSelect").value,
+        );
+
+        if (courseId) {
+          var courseKey = "course_" + courseId;
+
+          // Initialize perAssessment if not exists
+          if (!store.hps) {
+            store.hps = {};
+          }
+          if (!store.hps.perAssessment) {
+            store.hps.perAssessment = {};
+          }
+
+          // Get quiz count and save quiz HPS
+          var quizCount =
+            parseInt(document.getElementById("quizCount").value) || 4;
+          var quizHps = {};
+          for (var i = 1; i <= quizCount; i++) {
+            var hpsEl = document.getElementById("quizHps" + i);
+            if (hpsEl) {
+              quizHps["q" + i] = parseInt(hpsEl.value) || 50;
+            }
+          }
+
+          // Get PT count and save PT HPS
+          var ptCount = parseInt(document.getElementById("ptCount").value) || 4;
+          var ptHps = {};
+          for (var i = 1; i <= ptCount; i++) {
+            var hpsEl = document.getElementById("ptHps" + i);
+            if (hpsEl) {
+              ptHps["p" + i] = parseInt(hpsEl.value) || 100;
+            }
+          }
+
+          // Get Project count and save Project HPS
+          var projectCount =
+            parseInt(document.getElementById("projectCount").value) || 1;
+          var projectHps = {};
+          for (var i = 1; i <= projectCount; i++) {
+            var hpsEl = document.getElementById("projectHps" + i);
+            if (hpsEl) {
+              projectHps["p" + i] = parseInt(hpsEl.value) || 100;
+            }
+          }
+
+          // Save to store
+          store.hps.perAssessment[courseKey] = {
+            quiz: quizHps,
+            pt: ptHps,
+            project: projectHps,
+          };
+        }
+
+        save();
+        updateGradesSummary();
+        alert("Grades and HPS saved!");
+      }
+
+      function updateGradesSummary() {
+        var tbody = document.querySelector("#gradesSummaryTable tbody");
+        tbody.innerHTML = store.enrollments
+          .map(function (e) {
+            var student = store.students.find(function (s) {
+              return s.id === e.studentId;
+            });
+            var course = store.courses.find(function (c) {
+              return c.id === e.courseId;
+            });
+            if (!student || !course) return "";
+            var key = student.id + "_" + course.id;
+            var g = store.grades[key] || {
+              written: { p: 0, m: 0, pf: 0, f: 0 },
+              quiz: { q1: 0, q2: 0, q3: 0, q4: 0 },
+              pt: { p1: 0, p2: 0, p3: 0, p4: 0 },
+              project: { p1: 0, p2: 0 },
+            };
+            var writtenPct =
+              ((g.written.p + g.written.m + g.written.pf + g.written.f) /
+                4 /
+                store.hps.exam) *
+              100 *
+              (store.weights.written / 100);
+            var quizPct =
+              ((g.quiz.q1 + g.quiz.q2 + g.quiz.q3 + g.quiz.q4) /
+                4 /
+                store.hps.quiz) *
+              100 *
+              (store.weights.quiz / 100);
+            var ptPct =
+              ((g.pt.p1 + g.pt.p2 + g.pt.p3 + g.pt.p4) / 4 / store.hps.pt) *
+              100 *
+              (store.weights.pt / 100);
+            var projPct =
+              ((g.project.p1 + g.project.p2) / 2 / store.hps.project) *
+              100 *
+              (store.weights.project / 100);
+            var total = writtenPct + quizPct + ptPct + projPct;
+            var grade = store.gradingScale
+              .sort(function (a, b) {
+                return b.min - a.min;
+              })
+              .find(function (s) {
+                return total >= s.min;
+              });
+            return (
+              "<tr><td>" +
+              student.name +
+              "</td><td>" +
+              course.code +
+              "</td><td>" +
+              writtenPct.toFixed(1) +
+              "%</td><td>" +
+              quizPct.toFixed(1) +
+              "%</td><td>" +
+              ptPct.toFixed(1) +
+              "%</td><td>" +
+              projPct.toFixed(1) +
+              "%</td><td><strong>" +
+              total.toFixed(1) +
+              '%</strong></td><td><span class="badge bg-primary">' +
+              (grade ? grade.label : "N/A") +
+              "</span></td></tr>"
+            );
+          })
+          .join("");
+      }
+
+      function renderGradingScale() {
+        var tbody = document.querySelector("#gradingScaleTable tbody");
+        tbody.innerHTML = store.gradingScale
+          .map(function (s, i) {
+            return (
+              '<tr><td><input type="number" class="form-control form-control-sm" value="' +
+              s.min +
+              '" onchange="updateGradeScale(' +
+              i +
+              ", 'min', this.value)\"></td><td>" +
+              s.max +
+              '</td><td><input type="text" class="form-control form-control-sm" value="' +
+              s.label +
+              '" onchange="updateGradeScale(' +
+              i +
+              ', \'label\', this.value)"></td><td><button class="btn btn-sm btn-danger" onclick="deleteGradeScale(' +
+              i +
+              ')">x</button></td></tr>'
+            );
+          })
+          .join("");
+      }
+
+      function addGradeScale() {
+        store.gradingScale.push({ min: 50, max: 59, label: "D" });
+        save();
+        renderGradingScale();
+      }
+
+      function updateGradeScale(i, field, val) {
+        store.gradingScale[i][field] = field === "min" ? parseFloat(val) : val;
+        save();
+        updateGradesSummary();
+      }
+
+      function deleteGradeScale(i) {
+        store.gradingScale.splice(i, 1);
+        save();
+        renderGradingScale();
+      }
+
+      function saveWeights() {
+        store.weights.written =
+          parseInt(document.getElementById("weightWritten").value) || 40;
+        store.weights.quiz =
+          parseInt(document.getElementById("weightQuiz").value) || 20;
+        store.weights.pt =
+          parseInt(document.getElementById("weightPT").value) || 30;
+        store.weights.project =
+          parseInt(document.getElementById("weightProject").value) || 10;
+        save();
+        updateGradesSummary();
+        alert("Weights saved!");
+      }
+
+      // Assessment Entry Functions
+      function populateAssessmentCourseSelect() {
+        var select = document.getElementById("assessmentCourse");
+        select.innerHTML =
+          '<option value="">Select Course</option>' +
+          store.courses
+            .map(function (c) {
+              return (
+                '<option value="' +
+                c.id +
+                '">' +
+                c.code +
+                " - " +
+                c.title +
+                "</option>"
+              );
+            })
+            .join("");
+      }
+
+      function saveAssessment() {
+        var assessment = {
+          id: Date.now(),
+          type: document.getElementById("assessmentType").value,
+          title: document.getElementById("assessmentTitle").value,
+          date: document.getElementById("assessmentDate").value,
+          courseId: parseInt(document.getElementById("assessmentCourse").value),
+        };
+        store.assessments.push(assessment);
+        save();
+        renderAssessment();
+        document.getElementById("assessmentForm").reset();
+        alert("Assessment added!");
+      }
+
+      function renderAssessment() {
+        var tbody = document.querySelector("#assessmentTable tbody");
+        var typeLabels = {
+          written: "Written Exam",
+          quiz: "Quiz",
+          pt: "Performance Task",
+          project: "Project",
+        };
+        tbody.innerHTML = store.assessments
+          .map(function (a, i) {
+            var course = store.courses.find(function (c) {
+              return c.id === a.courseId;
+            });
+            return (
+              "<tr><td>" +
+              (typeLabels[a.type] || a.type) +
+              "</td><td>" +
+              a.title +
+              "</td><td>" +
+              (course ? course.code : "N/A") +
+              "</td><td>" +
+              a.date +
+              '</td><td><button class="btn btn-sm btn-danger" onclick="deleteAssessment(' +
+              i +
+              ')">x</button></td></tr>'
+            );
+          })
+          .join("");
+      }
+
+      function deleteAssessment(i) {
+        if (confirm("Delete this assessment?")) {
+          // Move to trash instead of permanent delete
+          var deletedAssessment = store.assessments[i];
+          deletedAssessment.deletedAt = new Date().toISOString(); // Track when it was deleted
+          store.deletedAssessments.push(deletedAssessment);
+          store.assessments.splice(i, 1);
+          save();
+          renderAssessment();
+          // Show notification about trash
+          alert(
+            "Assessment moved to trash! You can restore it from the Trash section.",
+          );
+        }
+      }
+
+      // Restore assessment from trash
+      function restoreAssessment(i) {
+        var assessment = store.deletedAssessments[i];
+        if (assessment) {
+          // Remove the deletedAt property before restoring
+          delete assessment.deletedAt;
+          store.assessments.push(assessment);
+          store.deletedAssessments.splice(i, 1);
+          save();
+          renderDeletedAssessments();
+          renderAssessment();
+          alert("Assessment restored successfully!");
+        }
+      }
+
+      // Permanently delete assessment from trash
+      function permanentDeleteAssessment(i) {
+        if (
+          confirm("Permanently delete this assessment? This cannot be undone!")
+        ) {
+          store.deletedAssessments.splice(i, 1);
+          save();
+          renderDeletedAssessments();
+          alert("Assessment permanently deleted!");
+        }
+      }
+
+      // Empty all items from trash
+      function emptyTrashAssessments() {
+        if (
+          confirm(
+            "Are you sure you want to permanently delete all items in trash? This cannot be undone!",
+          )
+        ) {
+          store.deletedAssessments = [];
+          save();
+          renderDeletedAssessments();
+          alert("Trash emptied successfully!");
+        }
+      }
+
+      // Render deleted assessments (trash)
+      function renderDeletedAssessments() {
+        var tbody = document.querySelector("#deletedAssessmentsTable tbody");
+        var emptyMsg = document.getElementById("deletedAssessmentsEmpty");
+
+        if (!tbody || !emptyMsg) return;
+
+        if (store.deletedAssessments.length === 0) {
+          tbody.innerHTML = "";
+          emptyMsg.classList.remove("d-none");
+          return;
+        }
+
+        emptyMsg.classList.add("d-none");
+
+        var typeLabels = {
+          written: "Written Exam",
+          quiz: "Quiz",
+          pt: "Performance Task",
+          project: "Project",
+        };
+
+        tbody.innerHTML = store.deletedAssessments
+          .map(function (a, i) {
+            var course = store.courses.find(function (c) {
+              return c.id === a.courseId;
+            });
+            var deletedDate = a.deletedAt
+              ? new Date(a.deletedAt).toLocaleDateString()
+              : "Unknown";
+            return (
+              "<tr><td>" +
+              (typeLabels[a.type] || a.type) +
+              "</td><td>" +
+              a.title +
+              "</td><td>" +
+              (course ? course.code : "N/A") +
+              "</td><td>" +
+              a.date +
+              "</td><td>" +
+              deletedDate +
+              '</td><td><button class="btn btn-sm btn-success me-1" onclick="restoreAssessment(' +
+              i +
+              ')" title="Restore"><i class="fas fa-trash-restore"></i> Restore</button><button class="btn btn-sm btn-danger" onclick="permanentDeleteAssessment(' +
+              i +
+              '" title="Permanently Delete"><i class="fas fa-times"></i></button></td></tr>'
+            );
+          })
+          .join("");
+      }
+
+      // Assessment & HPS Entry Functions
+      function populateAssessmentHpsCourseSelect() {
+        var select = document.getElementById("ahpsCourseSelect");
+        select.innerHTML =
+          '<option value="">Select Course</option>' +
+          store.courses
+            .map(function (c) {
+              return (
+                '<option value="' +
+                c.id +
+                '">' +
+                c.code +
+                " - " +
+                c.title +
+                (c.hasLab ? " (Lab)" : "") +
+                "</option>"
+              );
+            })
+            .join("");
+
+        // Reset the type select
+        var typeSelect = document.getElementById("ahpsTypeSelect");
+        var options = typeSelect.querySelectorAll("option");
+        options.forEach(function (opt) {
+          opt.disabled = false;
+        });
+      }
+
+      // Current assessment data for the table
+      var ahpsData = {
+        courseId: null,
+        type: null,
+        assessments: [], // Array of {id, month, title, hps}
+      };
+
+      // Months array
+      var months = [
+        "January",
+        "February",
+        "March",
+        "April",
+        "May",
+        "June",
+        "July",
+        "August",
+        "September",
+        "October",
+        "November",
+        "December",
+      ];
+
+      function renderAssessmentHpsTable() {
+        var courseId = parseInt(
+          document.getElementById("ahpsCourseSelect").value,
+        );
+        var type = document.getElementById("ahpsTypeSelect").value;
+
+        var noCourseMsg = document.getElementById("ahpsNoCourseMsg");
+        var tableContainer = document.getElementById("ahpsTableContainer");
+
+        if (!courseId || !type) {
+          noCourseMsg.classList.remove("d-none");
+          tableContainer.classList.add("d-none");
+          return;
+        }
+
+        noCourseMsg.classList.add("d-none");
+        tableContainer.classList.remove("d-none");
+
+        // Store current selection
+        ahpsData.courseId = courseId;
+        ahpsData.type = type;
+
+        // Load existing assessments for this course and type
+        loadAssessmentHpsData(courseId, type);
+
+        // Render the table
+        renderAhpsTableBody();
+      }
+
+      // Update assessment type dropdown based on course
+      function updateAssessmentTypeOptions() {
+        var courseId = parseInt(
+          document.getElementById("ahpsCourseSelect").value,
+        );
+        var typeSelect = document.getElementById("ahpsTypeSelect");
+
+        // Find the course
+        var course = store.courses.find(function (c) {
+          return c.id === courseId;
+        });
+
+        var isLabCourse = course && course.hasLab;
+
+        // Get all options
+        var options = typeSelect.querySelectorAll("option");
+
+        options.forEach(function (opt) {
+          if (opt.value === "") return; // Skip the placeholder
+
+          if (isLabCourse) {
+            // Lab course: Enable ALL options (Written, Quiz, PT, Project)
+            opt.disabled = false;
+          } else {
+            // Non-lab course: Enable Written and Quizzes, disable PT and Project
+            if (opt.value === "pt" || opt.value === "project") {
+              opt.disabled = true;
+            } else {
+              opt.disabled = false;
+            }
+          }
+        });
+
+        // If current selected type is now disabled, reset selection
+        if (
+          typeSelect.value &&
+          typeSelect.options[typeSelect.selectedIndex].disabled
+        ) {
+          typeSelect.value = "";
+          renderAssessmentHpsTable();
+        }
+      }
+
+      function loadAssessmentHpsData(courseId, type) {
+        // Filter assessments from store
+        var courseAssessments = store.assessments.filter(function (a) {
+          return a.courseId === courseId && a.type === type;
+        });
+
+        // Get HPS per assessment from store
+        var courseKey = "course_" + courseId;
+        var hpsData =
+          store.hps.perAssessment && store.hps.perAssessment[courseKey]
+            ? store.hps.perAssessment[courseKey]
+            : {};
+
+        // Build assessments array
+        ahpsData.assessments = [];
+
+        if (type === "written") {
+          // Written exams: Prelim, Midterm, Pre-Final, Final
+          var writtenTypes = [
+            { id: "p", title: "Prelim" },
+            { id: "m", title: "Midterm" },
+            { id: "pf", title: "Pre-Final" },
+            { id: "f", title: "Final" },
+          ];
+
+          writtenTypes.forEach(function (w, index) {
+            var assessment = courseAssessments.find(function (a) {
+              return a.subType === w.id;
+            });
+            var hps = hpsData.written ? hpsData.written[w.id] : 100;
+
+            ahpsData.assessments.push({
+              id: w.id,
+              subType: w.id,
+              title: w.title,
+              month: assessment ? assessment.month : "",
+              date: assessment ? assessment.date : "",
+              hps: hps || 100,
+            });
+          });
+        } else {
+          // For quiz, pt, project - load from assessments
+          courseAssessments.forEach(function (a, index) {
+            var typeKey = type === "pt" ? "pt" : type;
+            var hps = hpsData[typeKey]
+              ? hpsData[typeKey]["a" + a.id]
+              : type === "quiz"
+                ? 50
+                : 100;
+
+            ahpsData.assessments.push({
+              id: a.id,
+              subType: "a" + a.id,
+              title: a.title,
+              month: a.month || "",
+              date: a.date || "",
+              hps: hps || (type === "quiz" ? 50 : 100),
+            });
+          });
+
+          // If no assessments exist, create default entries
+          if (ahpsData.assessments.length === 0) {
+            var defaultCount = type === "quiz" ? 4 : type === "pt" ? 4 : 2;
+            for (var i = 1; i <= defaultCount; i++) {
+              ahpsData.assessments.push({
+                id: "new_" + i,
+                subType: "new_" + i,
+                title:
+                  (type === "quiz"
+                    ? "Quiz "
+                    : type === "pt"
+                      ? "PT "
+                      : "Project ") + i,
+                month: "",
+                date: "",
+                hps: type === "quiz" ? 50 : 100,
+              });
+            }
+          }
+        }
+      }
+
+      function renderAhpsTableBody() {
+        var tbody = document.getElementById("assessmentHpsTableBody");
+
+        var html = ahpsData.assessments
+          .map(function (a, index) {
+            return (
+              '<tr data-id="' +
+              a.id +
+              '">' +
+              '<td class="text-center">' +
+              (index + 1) +
+              "</td>" +
+              "<td>" +
+              '<select class="form-select form-select-sm" onchange="updateAssessmentMonth(\'' +
+              a.id +
+              "', this.value)\">" +
+              '<option value="">Select Month</option>' +
+              months
+                .map(function (m) {
+                  return (
+                    '<option value="' +
+                    m +
+                    '"' +
+                    (a.month === m ? " selected" : "") +
+                    ">" +
+                    m +
+                    "</option>"
+                  );
+                })
+                .join("") +
+              "</select>" +
+              "</td>" +
+              "<td>" +
+              '<input type="date" class="form-control form-control-sm" value="' +
+              (a.date || "") +
+              '" onchange="updateAssessmentDate(\'' +
+              a.id +
+              "', this.value)\" />" +
+              "</td>" +
+              "<td>" +
+              '<input type="text" class="form-control form-control-sm" value="' +
+              a.title +
+              '" ' +
+              "onchange=\"updateAssessmentTitle('" +
+              a.id +
+              '\', this.value)" placeholder="Assessment Title" />' +
+              "</td>" +
+              "<td>" +
+              '<input type="number" class="form-control form-control-sm" value="' +
+              a.hps +
+              '" ' +
+              "onchange=\"updateAssessmentHps('" +
+              a.id +
+              '\', this.value)" min="1" />' +
+              "</td>" +
+              '<td class="text-center">' +
+              '<button class="btn btn-sm btn-danger" onclick="removeAssessmentRow(\'' +
+              a.id +
+              '\')" title="Remove">' +
+              '<i class="fas fa-trash"></i>' +
+              "</button>" +
+              "</td>" +
+              "</tr>"
+            );
+          })
+          .join("");
+
+        tbody.innerHTML = html;
+      }
+
+      function updateAssessmentDate(id, value) {
+        var assessment = ahpsData.assessments.find(function (a) {
+          return a.id === id;
+        });
+        if (assessment) {
+          assessment.date = value;
+        }
+      }
+
+      function updateAssessmentMonth(id, value) {
+        var assessment = ahpsData.assessments.find(function (a) {
+          return a.id === id;
+        });
+        if (assessment) {
+          assessment.month = value;
+        }
+      }
+
+      function updateAssessmentTitle(id, value) {
+        var assessment = ahpsData.assessments.find(function (a) {
+          return a.id === id;
+        });
+        if (assessment) {
+          assessment.title = value;
+        }
+      }
+
+      function updateAssessmentHps(id, value) {
+        var assessment = ahpsData.assessments.find(function (a) {
+          return a.id === id;
+        });
+        if (assessment) {
+          assessment.hps = parseInt(value) || 1;
+        }
+      }
+
+      function addAssessmentRow() {
+        var newId = "new_" + Date.now();
+        var type = ahpsData.type;
+        var count = ahpsData.assessments.length + 1;
+
+        ahpsData.assessments.push({
+          id: newId,
+          subType: "new_" + count,
+          title:
+            (type === "quiz" ? "Quiz " : type === "pt" ? "PT " : "Project ") +
+            count,
+          month: "",
+          date: "",
+          hps: type === "quiz" ? 50 : 100,
+        });
+
+        renderAhpsTableBody();
+      }
+
+      function removeAssessmentRow(id) {
+        if (ahpsData.assessments.length <= 1) {
+          alert("You must have at least one assessment.");
+          return;
+        }
+
+        if (confirm("Remove this assessment row?")) {
+          ahpsData.assessments = ahpsData.assessments.filter(function (a) {
+            return a.id !== id;
+          });
+          renderAhpsTableBody();
+        }
+      }
+
+      function addMonthColumn() {
+        // This feature allows adding more assessments per month - for now just add a row
+        addAssessmentRow();
+      }
+
+      function saveAssessmentHps() {
+        var courseId = ahpsData.courseId;
+        var type = ahpsData.type;
+
+        if (!courseId || !type) {
+          alert("Please select a course and assessment type");
+          return;
+        }
+
+        // Remove existing assessments for this course and type
+        store.assessments = store.assessments.filter(function (a) {
+          return !(a.courseId === courseId && a.type === type);
+        });
+
+        // Initialize perAssessment if not exists
+        if (!store.hps) {
+          store.hps = {};
+        }
+        if (!store.hps.perAssessment) {
+          store.hps.perAssessment = {};
+        }
+
+        var courseKey = "course_" + courseId;
+        if (!store.hps.perAssessment[courseKey]) {
+          store.hps.perAssessment[courseKey] = {};
+        }
+
+        // Save new assessments and HPS
+        var typeHps = {};
+
+        ahpsData.assessments.forEach(function (a) {
+          // Save assessment
+          var assessment = {
+            id: a.id.toString().startsWith("new_")
+              ? Date.now() + Math.random()
+              : parseInt(a.id),
+            courseId: courseId,
+            type: type,
+            subType: a.subType,
+            title: a.title,
+            month: a.month,
+            date: a.date || "",
+          };
+          store.assessments.push(assessment);
+
+          // Save HPS
+          typeHps[a.subType] = a.hps;
+        });
+
+        // Store HPS per type
+        if (type === "written") {
+          store.hps.perAssessment[courseKey].written = typeHps;
+        } else if (type === "quiz") {
+          store.hps.perAssessment[courseKey].quiz = typeHps;
+        } else if (type === "pt") {
+          store.hps.perAssessment[courseKey].pt = typeHps;
+        } else if (type === "project") {
+          store.hps.perAssessment[courseKey].project = typeHps;
+        }
+
+        save();
+        alert(
+          "Assessment & HPS saved successfully!\n\nYou can now go to 'Grade Entry' to enter grades for this course.",
+        );
+      }
+
+      // Group Management Functions
+      function populateGroupCourseSelect() {
+        var select = document.getElementById("groupCourse");
+        // Show all courses (both Lab and Lecture)
+        select.innerHTML =
+          '<option value="">Select Course</option>' +
+          store.courses
+            .map(function (c) {
+              return (
+                '<option value="' +
+                c.id +
+                '">' +
+                c.code +
+                " - " +
+                c.title +
+                (c.hasLab ? " (Lab)" : "") +
+                "</option>"
+              );
+            })
+            .join("");
+
+        // Initialize group name inputs
+        renderGroupNameInputs();
+      }
+
+      // Render group name input fields based on count
+      function renderGroupNameInputs() {
+        var count = parseInt(document.getElementById("groupCount").value) || 2;
+        var container = document.getElementById("groupNamesContainer");
+
+        var html = '<label class="form-label">Group Names</label>';
+
+        for (var i = 1; i <= count; i++) {
+          var defaultName = "Group " + String.fromCharCode(64 + i); // Group A, B, C, etc.
+          html +=
+            '<input type="text" class="form-control mb-2" id="groupName' +
+            i +
+            '" placeholder="Group ' +
+            String.fromCharCode(64 + i) +
+            '" value="' +
+            defaultName +
+            '" required />';
+        }
+
+        container.innerHTML = html;
+      }
+
+      function saveGroup() {
+        var courseId = parseInt(document.getElementById("groupCourse").value);
+        var groupType = document.getElementById("groupType").value;
+        var groupCount =
+          parseInt(document.getElementById("groupCount").value) || 2;
+
+        if (!courseId) {
+          alert("Please select a course");
+          return;
+        }
+
+        // Get course info
+        var course = store.courses.find(function (c) {
+          return c.id === courseId;
+        });
+
+        // Get enrolled students for this course
+        var courseEnrollments = store.enrollments.filter(function (e) {
+          return e.courseId === courseId;
+        });
+
+        var studentCount = courseEnrollments.length;
+
+        if (studentCount === 0) {
+          alert(
+            "No students are enrolled in this course. Please enroll students first.",
+          );
+          return;
+        }
+
+        // Check if groups already exist for this course and type
+        var existingGroups = store.groups
+          ? store.groups.filter(function (g) {
+              return g.courseId === courseId && g.groupType === groupType;
+            })
+          : [];
+
+        if (existingGroups.length > 0) {
+          if (
+            !confirm(
+              "Groups already exist for this course and type. Do you want to replace them?",
+            )
+          ) {
+            return;
+          }
+          // Remove existing groups for this course and type
+          store.groups = store.groups.filter(function (g) {
+            return !(g.courseId === courseId && g.groupType === groupType);
+          });
+        }
+
+        // Calculate students per group (equal distribution)
+        var studentsPerGroup = Math.floor(studentCount / groupCount);
+        var remainder = studentCount % groupCount;
+
+        // Shuffle enrolled students for random distribution
+        var shuffledEnrollments = courseEnrollments.slice().sort(function () {
+          return 0.5 - Math.random();
+        });
+
+        // Create groups with equal distribution
+        var studentIndex = 0;
+        for (var i = 1; i <= groupCount; i++) {
+          var groupName = document.getElementById("groupName" + i).value;
+
+          // Calculate how many students this group gets
+          // First 'remainder' groups get one extra student
+          var studentsInThisGroup = studentsPerGroup + (i <= remainder ? 1 : 0);
+
+          // Get the student IDs for this group
+          var groupStudents = [];
+          for (
+            var j = 0;
+            j < studentsInThisGroup &&
+            studentIndex < shuffledEnrollments.length;
+            j++
+          ) {
+            groupStudents.push(shuffledEnrollments[studentIndex].studentId);
+            studentIndex++;
+          }
+
+          var group = {
+            id: Date.now() + i, // Unique ID
+            name: groupName,
+            courseId: courseId,
+            groupType: groupType,
+            students: groupStudents,
+          };
+
+          store.groups.push(group);
+        }
+
+        save();
+        renderGroups();
+        document.getElementById("groupForm").reset();
+
+        // Re-initialize group name inputs
+        renderGroupNameInputs();
+
+        alert(
+          "Groups created successfully! Students have been distributed equally among " +
+            groupCount +
+            " groups.",
+        );
+      }
+
+      function renderGroups() {
+        var tbody = document.querySelector("#groupsTable tbody");
+
+        if (!store.groups || store.groups.length === 0) {
+          tbody.innerHTML =
+            '<tr><td colspan="4" class="text-center text-muted">No groups created yet</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = store.groups
+          .map(function (g, i) {
+            var course = store.courses.find(function (c) {
+              return c.id === g.courseId;
+            });
+            return (
+              "<tr><td>" +
+              g.name +
+              "</td><td>" +
+              (course ? course.code : "N/A") +
+              "</td><td>" +
+              (g.groupType || "N/A") +
+              '</td><td><button class="btn btn-sm btn-danger" onclick="deleteGroup(' +
+              i +
+              ')">x</button></td></tr>'
+            );
+          })
+          .join("");
+      }
+
+      function deleteGroup(i) {
+        if (confirm("Delete this group?")) {
+          store.groups.splice(i, 1);
+          save();
+          renderGroups();
+        }
+      }
+
+      function clearAllGroups() {
+        if (confirm("Are you sure you want to delete all groups?")) {
+          store.groups = [];
+          save();
+          renderGroups();
+          alert("All groups have been deleted!");
+        }
+      }
+
+      function save() {
+        // Use SyncManager for saving - works offline by default
+        // SyncManager will save to localStorage first, optionally sync to Firebase if enabled
+        if (typeof SyncManager !== "undefined") {
+          SyncManager.quickSave(store);
+          // Show notification that data was saved and needs export
+          SyncManager.notifyDataChanged();
+        } else {
+          // Fallback to direct localStorage save
+          localStorage.setItem(DB_KEY, JSON.stringify(store));
+        }
+      }
+
+      // ============================================
+      // Export/Import Data Functions
+      // ============================================
+
+      // Export data as JSON file
+      function exportData() {
+        const dataStr = JSON.stringify(store, null, 2);
+        const blob = new Blob([dataStr], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `student_grade_tracker_backup_${new Date().toISOString().slice(0, 10)}.json`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+
+        alert(
+          "Data exported successfully! You can use this file to backup or transfer data.",
+        );
+        return true;
+      }
+
+      // Export shared data for students (without admin-only data)
+      function exportSharedData() {
+        if (typeof SyncManager !== "undefined") {
+          SyncManager.exportSharedData();
+          alert(
+            "Shared data exported as 'data.json'!\n\nThis file can be uploaded to GitHub Pages so students can view their grades.\n\nInstructions:\n1. Download this file\n2. Upload it to your GitHub repository\n3. Students can then access the shared grades",
+          );
+        }
+      }
+
+      // Import data from JSON file
+      function importData(input) {
+        const file = input.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function (e) {
+          try {
+            const importedData = JSON.parse(e.target.result);
+
+            // Validate basic structure
+            if (!importedData.courses || !importedData.students) {
+              alert(
+                "Invalid backup file format. Please select a valid backup file.",
+              );
+              return;
+            }
+
+            // Update store with imported data
+            store = importedData;
+
+            // Save to localStorage
+            localStorage.setItem(DB_KEY, JSON.stringify(store));
+
+            // Trigger notification that data was changed
+            if (typeof SyncManager !== "undefined") {
+              SyncManager.notifyDataChanged();
+            }
+
+            // Refresh the UI
+            renderDashboard();
+            renderCourses();
+            renderStudents();
+            renderEnrollment();
+            renderGradingScale();
+            populateDashboardGradeFilter();
+            renderDashboardGradeSummary();
+
+            alert("Data imported successfully!");
+          } catch (error) {
+            alert("Error importing data: " + error.message);
+          }
+        };
+        reader.readAsText(file);
+
+        // Reset the input
+        input.value = "";
+      }
+
+      // ============================================
+      // Firebase Firestore Sync Functions
+      // ============================================
+
+      // Save all data to Firebase Firestore
+      async function saveToFirebase() {
+        // Check if Firebase is available
+        if (!db || !firebase || typeof firebase.firestore !== "function") {
+          console.log("Firebase not available, skipping sync");
+          return;
+        }
+
+        try {
+          // Save each collection to Firestore
+          await saveCollectionToFirebase("courses", store.courses);
+          await saveCollectionToFirebase("students", store.students);
+          await saveCollectionToFirebase("enrollments", store.enrollments);
+          await saveCollectionToFirebase("assessments", store.assessments);
+          await saveCollectionToFirebase("groups", store.groups);
+
+          // Save grades (object with dynamic keys)
+          await saveGradesToFirebase("grades", store.grades);
+
+          // Save settings (hps, weights, gradingScale)
+          await saveSettingsToFirebase();
+
+          console.log("Data synced to Firebase successfully");
+        } catch (error) {
+          console.error("Error syncing to Firebase:", error);
+        }
+      }
+
+      // Save a collection array to Firestore
+      async function saveCollectionToFirebase(collectionName, data) {
+        // Check if Firebase is available
+        if (!db || !firebase || typeof firebase.firestore !== "function") {
+          return;
+        }
+
+        try {
+          // Delete all existing documents in the collection
+          const snapshot = await db.collection(collectionName).get();
+          const deletePromises = snapshot.docs.map((doc) => doc.ref.delete());
+          await Promise.all(deletePromises);
+
+          // Add all items from the array
+          if (data && data.length > 0) {
+            const addPromises = data.map((item) =>
+              db.collection(collectionName).add(item),
+            );
+            await Promise.all(addPromises);
+          }
+        } catch (error) {
+          console.error(`Error saving ${collectionName} to Firebase:`, error);
+        }
+      }
+
+      // Save grades to Firestore (grades is an object, not array)
+      async function saveGradesToFirebase(collectionName, data) {
+        // Check if Firebase is available
+        if (!db || !firebase || typeof firebase.firestore !== "function") {
+          return;
+        }
+
+        try {
+          // Delete all existing documents in grades collection
+          const snapshot = await db.collection(collectionName).get();
+          const deletePromises = snapshot.docs.map((doc) => doc.ref.delete());
+          await Promise.all(deletePromises);
+
+          // Add each grade entry as a document
+          if (data) {
+            const entries = Object.entries(data);
+            if (entries.length > 0) {
+              const addPromises = entries.map(([key, value]) =>
+                db.collection(collectionName).add({ id: key, ...value }),
+              );
+              await Promise.all(addPromises);
+            }
+          }
+        } catch (error) {
+          console.error(`Error saving ${collectionName} to Firebase:`, error);
+        }
+      }
+
+      // Save settings (hps, weights, gradingScale) to Firestore
+      async function saveSettingsToFirebase() {
+        try {
+          // Save hps
+          if (store.hps) {
+            await db.collection("settings").doc("hps").set(store.hps);
+          }
+
+          // Save weights
+          if (store.weights) {
+            await db.collection("settings").doc("weights").set(store.weights);
+          }
+
+          // Save gradingScale
+          if (store.gradingScale) {
+            await db.collection("settings").doc("gradingScale").set({
+              scale: store.gradingScale,
+            });
+          }
+        } catch (error) {
+          console.error("Error saving settings to Firebase:", error);
+        }
+      }
+
+      // Load all data from Firebase Firestore on startup
+      async function loadFromFirebase() {
+        // Check if Firebase is available
+        if (!db || !firebase || typeof firebase.firestore !== "function") {
+          console.log("Firebase not available, using localStorage only");
+          store = JSON.parse(localStorage.getItem(DB_KEY)) || store;
+          return false;
+        }
+
+        try {
+          console.log("Loading data from Firebase...");
+
+          // Load collections
+          store.courses = await loadCollectionFromFirebase("courses");
+          store.students = await loadCollectionFromFirebase("students");
+          store.enrollments = await loadCollectionFromFirebase("enrollments");
+          store.assessments = await loadCollectionFromFirebase("assessments");
+          store.groups = await loadCollectionFromFirebase("groups");
+          store.grades = await loadGradesFromFirebase("grades");
+
+          // Load settings
+          const hpsDoc = await db.collection("settings").doc("hps").get();
+          if (hpsDoc.exists) {
+            store.hps = hpsDoc.data();
+          }
+
+          const weightsDoc = await db
+            .collection("settings")
+            .doc("weights")
+            .get();
+          if (weightsDoc.exists) {
+            store.weights = weightsDoc.data();
+          }
+
+          const gradingScaleDoc = await db
+            .collection("settings")
+            .doc("gradingScale")
+            .get();
+          if (gradingScaleDoc.exists) {
+            store.gradingScale = gradingScaleDoc.data().scale || [];
+          }
+
+          // Save to localStorage after loading from Firebase
+          localStorage.setItem(DB_KEY, JSON.stringify(store));
+
+          console.log("Data loaded from Firebase successfully");
+          return true;
+        } catch (error) {
+          console.error("Error loading from Firebase:", error);
+          // Fall back to localStorage on error
+          console.log("Falling back to localStorage...");
+          store = JSON.parse(localStorage.getItem(DB_KEY)) || store;
+          return false;
+        }
+      }
+
+      // Load a collection array from Firestore
+      async function loadCollectionFromFirebase(collectionName) {
+        // Check if Firebase is available
+        if (!db || !firebase || typeof firebase.firestore !== "function") {
+          return [];
+        }
+
+        try {
+          const snapshot = await db.collection(collectionName).get();
+          const data = [];
+          snapshot.forEach((doc) => {
+            data.push(doc.data());
+          });
+          return data;
+        } catch (error) {
+          console.error(
+            `Error loading ${collectionName} from Firebase:`,
+            error,
+          );
+          return [];
+        }
+      }
+
+      // Load grades from Firestore (grades is an object, not array)
+      async function loadGradesFromFirebase(collectionName) {
+        // Check if Firebase is available
+        if (!db || !firebase || typeof firebase.firestore !== "function") {
+          return {};
+        }
+
+        try {
+          const snapshot = await db.collection(collectionName).get();
+          const gradesObj = {};
+          snapshot.forEach((doc) => {
+            const data = doc.data();
+            const id = data.id;
+            delete data.id;
+            gradesObj[id] = data;
+          });
+          return gradesObj;
+        } catch (error) {
+          console.error(
+            `Error loading ${collectionName} from Firebase:`,
+            error,
+          );
+          return {};
+        }
+      }
+
+      // Dashboard Grade Summary Functions
+      function populateDashboardGradeFilter() {
+        var select = document.getElementById("dashboardGradeCourseFilter");
+        if (!select) return;
+
+        select.innerHTML =
+          '<option value="">All Courses</option>' +
+          store.courses
+            .map(function (c) {
+              return (
+                '<option value="' +
+                c.id +
+                '">' +
+                c.code +
+                " - " +
+                c.title +
+                "</option>"
+              );
+            })
+            .join("");
+      }
+
+      function renderDashboardGradeSummary() {
+        var tbody = document.getElementById("dashboardGradesTableBody");
+        if (!tbody) return;
+
+        var filterCourseId = document.getElementById(
+          "dashboardGradeCourseFilter",
+        )?.value;
+        var courseId = filterCourseId ? parseInt(filterCourseId) : null;
+
+        // Filter enrollments based on selected course
+        var filteredEnrollments = courseId
+          ? store.enrollments.filter(function (e) {
+              return e.courseId === courseId;
+            })
+          : store.enrollments;
+
+        if (filteredEnrollments.length === 0) {
+          tbody.innerHTML =
+            '<tr><td colspan="8" class="text-center text-muted py-4"><i class="fas fa-info-circle me-2"></i>No enrollments found</td></tr>';
+          return;
+        }
+
+        // Get HPS defaults
+        var defaultHps = {
+          written: store.hps?.exam || 100,
+          quiz: store.hps?.quiz || 50,
+          pt: store.hps?.pt || 100,
+          project: store.hps?.project || 100,
+        };
+
+        // Sort by student name
+        filteredEnrollments.sort(function (a, b) {
+          var studentA = store.students.find(function (s) {
+            return s.id === a.studentId;
+          });
+          var studentB = store.students.find(function (s) {
+            return s.id === b.studentId;
+          });
+          if (!studentA || !studentB) return 0;
+          return (studentA.name || "").localeCompare(studentB.name || "");
+        });
+
+        tbody.innerHTML = filteredEnrollments
+          .map(function (e) {
+            var student = store.students.find(function (s) {
+              return s.id === e.studentId;
+            });
+            var course = store.courses.find(function (c) {
+              return c.id === e.courseId;
+            });
+
+            if (!student || !course) return "";
+
+            var key = student.id + "_" + course.id;
+            var g = store.grades[key] || {
+              written: { p: 0, m: 0, pf: 0, f: 0 },
+              quiz: {},
+              pt: { p1: 0, p2: 0, p3: 0, p4: 0 },
+              project: { p1: 0, p2: 0 },
+            };
+
+            // Get course-specific HPS
+            var courseKey = "course_" + course.id;
+            var courseHps = store.hps?.perAssessment?.[courseKey] || {};
+
+            var writtenHps = courseHps.written ? 100 : defaultHps.written;
+            var quizCount = g.quizCount || 4;
+            var quizHpsTotal = 0;
+            for (var i = 1; i <= quizCount; i++) {
+              quizHpsTotal += courseHps.quiz?.[`q${i}`] || defaultHps.quiz;
+            }
+            var quizHps =
+              quizCount > 0 ? quizHpsTotal / quizCount : defaultHps.quiz;
+
+            var ptHpsTotal = 0;
+            for (var i = 1; i <= 4; i++) {
+              ptHpsTotal += courseHps.pt?.[`p${i}`] || defaultHps.pt;
+            }
+            var ptHps = ptHpsTotal / 4;
+
+            var projectHpsTotal = 0;
+            for (var i = 1; i <= 2; i++) {
+              projectHpsTotal +=
+                courseHps.project?.[`p${i}`] || defaultHps.project;
+            }
+            var projectHps = projectHpsTotal / 2;
+
+            // Calculate percentages with weights
+            var weights = store.weights || {
+              written: 40,
+              quiz: 20,
+              pt: 30,
+              project: 10,
+            };
+
+            var writtenAvg =
+              (g.written.p + g.written.m + g.written.pf + g.written.f) / 4;
+            var writtenPct =
+              writtenHps > 0 ? (writtenAvg / writtenHps) * 100 : 0;
+            var writtenWeighted = writtenPct * (weights.written / 100);
+
+            var quizTotal = 0;
+            for (var i = 1; i <= quizCount; i++) {
+              quizTotal += g.quiz[`q${i}`] || 0;
+            }
+            var quizAvg = quizCount > 0 ? quizTotal / quizCount : 0;
+            var quizPct = quizHps > 0 ? (quizAvg / quizHps) * 100 : 0;
+            var quizWeighted = quizPct * (weights.quiz / 100);
+
+            var ptTotal =
+              (g.pt.p1 || 0) + (g.pt.p2 || 0) + (g.pt.p3 || 0) + (g.pt.p4 || 0);
+            var ptAvg = ptTotal / 4;
+            var ptPct = ptHps > 0 ? (ptAvg / ptHps) * 100 : 0;
+            var ptWeighted = ptPct * (weights.pt / 100);
+
+            var projectTotal = (g.project.p1 || 0) + (g.project.p2 || 0);
+            var projectAvg = projectTotal / 2;
+            var projectPct =
+              projectHps > 0 ? (projectAvg / projectHps) * 100 : 0;
+            var projectWeighted = projectPct * (weights.project / 100);
+
+            var total =
+              writtenWeighted + quizWeighted + ptWeighted + projectWeighted;
+
+            // Get letter grade
+            var grade = store.gradingScale
+              .sort(function (a, b) {
+                return b.min - a.min;
+              })
+              .find(function (s) {
+                return total >= s.min;
+              });
+
+            // Format name as "Lastname, Firstname"
+            var nameParts = (student.name || "").trim().split(" ");
+            var displayName = student.name;
+            if (nameParts.length > 1) {
+              var lastname = nameParts[nameParts.length - 1];
+              var firstname = nameParts.slice(0, -1).join(" ");
+              displayName = lastname + ", " + firstname;
+            }
+
+            // Determine badge color based on grade
+            var badgeColor = "bg-secondary";
+            if (grade) {
+              if (grade.label.startsWith("A")) badgeColor = "bg-success";
+              else if (grade.label.startsWith("B")) badgeColor = "bg-primary";
+              else if (grade.label.startsWith("C"))
+                badgeColor = "bg-warning text-dark";
+              else if (grade.label === "D" || grade.label === "F")
+                badgeColor = "bg-danger";
+            }
+
+            return (
+              "<tr>" +
+              '<td class="ps-4 fw-medium">' +
+              displayName +
+              "</td>" +
+              '<td><span class="badge bg-secondary">' +
+              course.code +
+              "</span></td>" +
+              "<td>" +
+              writtenPct.toFixed(1) +
+              "%</td>" +
+              "<td>" +
+              quizPct.toFixed(1) +
+              "%</td>" +
+              "<td>" +
+              ptPct.toFixed(1) +
+              "%</td>" +
+              "<td>" +
+              projectPct.toFixed(1) +
+              "%</td>" +
+              '<td class="fw-bold">' +
+              total.toFixed(1) +
+              "%</td>" +
+              '<td><span class="badge ' +
+              badgeColor +
+              '">' +
+              (grade ? grade.label : "N/A") +
+              "</span></td>" +
+              "</tr>"
+            );
+          })
+          .join("");
+      }
+
+      function downloadDashboardGradePDF() {
+        var enrollments = store.enrollments;
+
+        if (enrollments.length === 0) {
+          alert("No grades to download");
+          return;
+        }
+
+        var { jsPDF } = window.jspdf;
+        var doc = new jsPDF();
+
+        // Title
+        doc.setFontSize(18);
+        doc.text("Grade Summary Report", 14, 22);
+        doc.setFontSize(10);
+        doc.text("Generated: " + new Date().toLocaleDateString(), 14, 30);
+
+        // Get filter
+        var filterCourseId = document.getElementById(
+          "dashboardGradeCourseFilter",
+        )?.value;
+        var courseId = filterCourseId ? parseInt(filterCourseId) : null;
+
+        // Filter enrollments
+        var filteredEnrollments = courseId
+          ? store.enrollments.filter(function (e) {
+              return e.courseId === courseId;
+            })
+          : store.enrollments;
+
+        // Sort by student name
+        filteredEnrollments.sort(function (a, b) {
+          var studentA = store.students.find(function (s) {
+            return s.id === a.studentId;
+          });
+          var studentB = store.students.find(function (s) {
+            return s.id === b.studentId;
+          });
+          if (!studentA || !studentB) return 0;
+          return (studentA.name || "").localeCompare(studentB.name || "");
+        });
+
+        var defaultHps = {
+          written: store.hps?.exam || 100,
+          quiz: store.hps?.quiz || 50,
+          pt: store.hps?.pt || 100,
+          project: store.hps?.project || 100,
+        };
+
+        var tableData = filteredEnrollments.map(function (e) {
+          var student = store.students.find(function (s) {
+            return s.id === e.studentId;
+          });
+          var course = store.courses.find(function (c) {
+            return c.id === e.courseId;
+          });
+
+          if (!student || !course) return [];
+
+          var key = student.id + "_" + course.id;
+          var g = store.grades[key] || {
+            written: { p: 0, m: 0, pf: 0, f: 0 },
+            quiz: {},
+            pt: { p1: 0, p2: 0, p3: 0, p4: 0 },
+            project: { p1: 0, p2: 0 },
+          };
+
+          // Get course-specific HPS
+          var courseKey = "course_" + course.id;
+          var courseHps = store.hps?.perAssessment?.[courseKey] || {};
+
+          var writtenHps = courseHps.written ? 100 : defaultHps.written;
+          var quizCount = g.quizCount || 4;
+          var quizHpsTotal = 0;
+          for (var i = 1; i <= quizCount; i++) {
+            quizHpsTotal += courseHps.quiz?.[`q${i}`] || defaultHps.quiz;
+          }
+          var quizHps =
+            quizCount > 0 ? quizHpsTotal / quizCount : defaultHps.quiz;
+
+          var ptHpsTotal = 0;
+          for (var i = 1; i <= 4; i++) {
+            ptHpsTotal += courseHps.pt?.[`p${i}`] || defaultHps.pt;
+          }
+          var ptHps = ptHpsTotal / 4;
+
+          var projectHpsTotal = 0;
+          for (var i = 1; i <= 2; i++) {
+            projectHpsTotal +=
+              courseHps.project?.[`p${i}`] || defaultHps.project;
+          }
+          var projectHps = projectHpsTotal / 2;
+
+          var weights = store.weights || {
+            written: 40,
+            quiz: 20,
+            pt: 30,
+            project: 10,
+          };
+
+          var writtenAvg =
+            (g.written.p + g.written.m + g.written.pf + g.written.f) / 4;
+          var writtenPct = writtenHps > 0 ? (writtenAvg / writtenHps) * 100 : 0;
+          var writtenWeighted = writtenPct * (weights.written / 100);
+
+          var quizTotal = 0;
+          for (var i = 1; i <= quizCount; i++) {
+            quizTotal += g.quiz[`q${i}`] || 0;
+          }
+          var quizAvg = quizCount > 0 ? quizTotal / quizCount : 0;
+          var quizPct = quizHps > 0 ? (quizAvg / quizHps) * 100 : 0;
+          var quizWeighted = quizPct * (weights.quiz / 100);
+
+          var ptTotal =
+            (g.pt.p1 || 0) + (g.pt.p2 || 0) + (g.pt.p3 || 0) + (g.pt.p4 || 0);
+          var ptAvg = ptTotal / 4;
+          var ptPct = ptHps > 0 ? (ptAvg / ptHps) * 100 : 0;
+          var ptWeighted = ptPct * (weights.pt / 100);
+
+          var projectTotal = (g.project.p1 || 0) + (g.project.p2 || 0);
+          var projectAvg = projectTotal / 2;
+          var projectPct = projectHps > 0 ? (projectAvg / projectHps) * 100 : 0;
+          var projectWeighted = projectPct * (weights.project / 100);
+
+          var total =
+            writtenWeighted + quizWeighted + ptWeighted + projectWeighted;
+
+          var grade = store.gradingScale
+            .sort(function (a, b) {
+              return b.min - a.min;
+            })
+            .find(function (s) {
+              return total >= s.min;
+            });
+
+          // Format name
+          var nameParts = (student.name || "").trim().split(" ");
+          var displayName = student.name;
+          if (nameParts.length > 1) {
+            var lastname = nameParts[nameParts.length - 1];
+            var firstname = nameParts.slice(0, -1).join(" ");
+            displayName = lastname + ", " + firstname;
+          }
+
+          return [
+            displayName,
+            course.code,
+            writtenPct.toFixed(1) + "%",
+            quizPct.toFixed(1) + "%",
+            ptPct.toFixed(1) + "%",
+            projectPct.toFixed(1) + "%",
+            total.toFixed(1) + "%",
+            grade ? grade.label : "N/A",
+          ];
+        });
+
+        doc.autoTable({
+          head: [
+            [
+              "Student",
+              "Course",
+              "Written %",
+              "Quiz %",
+              "Lab %",
+              "Project %",
+              "Total %",
+              "Grade",
+            ],
+          ],
+          body: tableData,
+          startY: 35,
+          theme: "striped",
+          headStyles: { fillColor: [79, 70, 229] },
+          styles: { fontSize: 8 },
+        });
+
+        doc.save("grade_summary_report.pdf");
+      }
+    </script>
+  </body>
+</html>
